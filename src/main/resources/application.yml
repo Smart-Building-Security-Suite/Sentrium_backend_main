@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: security-suite-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/security_suite_dev}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: false
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api/v1
+jwt:
+  secret: ${JWT_SECRET:CHANGE_ME_IN_PRODUCTION_USE_A_64_CHAR_RANDOM_SECRET_NEVER_USE_THIS_DEFAULT}
+  access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:900000}
+  refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,https://security-suite-frontend.vercel.app}
+  reports-dir: ${APP_REPORTS_DIR:reports}

@@ -1,0 +1,21 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!mvnw
+!mvnw.cmd
+
+### Log files ###
+*.log
+hs_err_pid*.log
+
+### IDE / Editor files ###
+.idea/
+*.iml
+.vscode/
+.settings/
+.project/
+.classpath/
+bin/
+
+### OS files ###
+.DS_Store
+Thumbs.db
