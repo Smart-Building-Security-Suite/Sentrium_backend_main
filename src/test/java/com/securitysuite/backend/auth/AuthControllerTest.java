@@ -49,7 +49,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /auth/register - Success")
     void registerSuccess() throws Exception {
-        RegisterRequest request = new RegisterRequest("Test User", "test@security.com", "Secret123!", Role.SECURITY_OFFICER);
+        RegisterRequest request = new RegisterRequest("Test User", "test@security.com", "Secret123!");
         UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "test@security.com", Role.SECURITY_OFFICER);
         AuthResponse response = new AuthResponse("mock-access-token", 900L, summary);
 
@@ -58,7 +58,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken").value("mock-access-token"))
                 .andExpect(jsonPath("$.expiresIn").value(900))
                 .andExpect(jsonPath("$.user.email").value("test@security.com"))
