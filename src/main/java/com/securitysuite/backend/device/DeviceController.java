@@ -1,8 +1,5 @@
 package com.securitysuite.backend.device;
 
-import com.securitysuite.backend.common.NotFoundException;
-import com.securitysuite.backend.zone.Zone;
-import com.securitysuite.backend.zone.ZoneRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,32 +19,25 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Devices")
 public class DeviceController {
-    private final DeviceRepository deviceRepository;
-    private final ZoneRepository zoneRepository;
+    private final DeviceService deviceService;
 
     @GetMapping
-    public List<Device> list(@RequestParam(required = false) UUID zoneId) {
-        return zoneId == null ? deviceRepository.findAll() : deviceRepository.findByZoneId(zoneId);
+    public List<DeviceDto> list(@RequestParam(required = false) UUID zoneId) {
+        return deviceService.listAll(zoneId);
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
-    public ResponseEntity<Device> create(@Valid @RequestBody DeviceRequest request) {
-        Zone zone = zoneRepository.findById(request.zoneId()).orElseThrow(() -> new NotFoundException("Zone not found"));
-        Device device = new Device();
-        device.setName(request.name());
-        device.setType(request.type());
-        device.setZone(zone);
-        return ResponseEntity.status(HttpStatus.CREATED).body(deviceRepository.save(device));
+    public ResponseEntity<DeviceDto> create(@Valid @RequestBody DeviceRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(deviceService.create(request.name(), request.type(), request.zoneId()));
     }
 
     @PostMapping("/{id}/heartbeat")
     @Operation(summary = "Update device heartbeat and status")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<Void> heartbeat(@PathVariable UUID id, @Valid @RequestBody HeartbeatRequest request) {
-        Device device = deviceRepository.findById(id).orElseThrow(() -> new NotFoundException("Device not found"));
-        device.setStatus(request.status());
-        deviceRepository.save(device);
+        deviceService.updateStatus(id, request.status());
         return ResponseEntity.noContent().build();
     }
 

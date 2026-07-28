@@ -44,9 +44,7 @@ public class NotificationController {
     @Transactional
     public ResponseEntity<Void> readAll(@AuthenticationPrincipal UserDetails principal) {
         User user = userService.getByEmail(principal.getUsername());
-        for (Notification notification : notificationRepository.findByUserId(user.getId())) {
-            if (notification.getReadAt() == null) notification.setReadAt(Instant.now());
-        }
+        notificationRepository.markAllReadByUserId(user.getId(), java.time.Instant.now());
         return ResponseEntity.noContent().build();
     }
 

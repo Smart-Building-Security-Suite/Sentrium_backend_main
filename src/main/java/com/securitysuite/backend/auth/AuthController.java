@@ -38,8 +38,10 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletResponse response) {
-        authService.clearRefreshCookie(response);
+    public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        // Pass the refresh token so AuthService can revoke it server-side.
+        String refreshToken = extractRefreshTokenOrNull(request);
+        authService.clearRefreshCookie(response, refreshToken);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
@@ -52,5 +54,14 @@ public class AuthController {
                 .map(Cookie::getValue)
                 .findFirst()
                 .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Missing refresh token"));
+    }
+
+    private String extractRefreshTokenOrNull(HttpServletRequest request) {
+        if (request.getCookies() == null) return null;
+        return Arrays.stream(request.getCookies())
+                .filter(cookie -> "refresh_token".equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
     }
 }

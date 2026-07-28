@@ -1,6 +1,5 @@
 package com.securitysuite.backend.zone;
 
-import com.securitysuite.backend.common.NotFoundException;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -18,41 +17,31 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Zones")
 public class ZoneController {
-    private final ZoneRepository zoneRepository;
+    private final ZoneService zoneService;
 
     @GetMapping
-    public List<Zone> list() {
-        return zoneRepository.findAll();
+    public List<ZoneDto> list() {
+        return zoneService.listAll();
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Zone> create(@Valid @RequestBody ZoneRequest request) {
-        Zone zone = new Zone();
-        copy(request, zone);
-        return ResponseEntity.status(HttpStatus.CREATED).body(zoneRepository.save(zone));
+    public ResponseEntity<ZoneDto> create(@Valid @RequestBody ZoneRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(zoneService.create(request.name(), request.floor(), request.building()));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public Zone update(@PathVariable UUID id, @Valid @RequestBody ZoneRequest request) {
-        Zone zone = zoneRepository.findById(id).orElseThrow(() -> new NotFoundException("Zone not found"));
-        copy(request, zone);
-        return zoneRepository.save(zone);
+    public ZoneDto update(@PathVariable UUID id, @Valid @RequestBody ZoneRequest request) {
+        return zoneService.update(id, request.name(), request.floor(), request.building());
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        Zone zone = zoneRepository.findById(id).orElseThrow(() -> new NotFoundException("Zone not found"));
-        zoneRepository.delete(zone);
+        zoneService.delete(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private void copy(ZoneRequest request, Zone zone) {
-        zone.setName(request.name());
-        zone.setFloor(request.floor());
-        zone.setBuilding(request.building());
     }
 
     public record ZoneRequest(@NotBlank String name, @NotBlank String floor, @NotBlank String building) {}

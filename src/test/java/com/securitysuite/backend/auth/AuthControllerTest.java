@@ -46,6 +46,9 @@ class AuthControllerTest {
     @MockBean
     private CustomUserDetailsService userDetailsService;
 
+    @MockBean
+    private RevokedTokenRepository revokedTokenRepository;
+
     @Test
     @DisplayName("POST /auth/register - Success")
     void registerSuccess() throws Exception {
@@ -102,6 +105,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/logout"))
                 .andExpect(status().isNoContent());
 
-        verify(authService).clearRefreshCookie(any());
+        // clearRefreshCookie now takes (HttpServletResponse, String)
+        verify(authService).clearRefreshCookie(any(), any());
     }
 }

@@ -10,9 +10,11 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -34,17 +36,33 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    /** Returns the JWT ID (jti) claim — used for revocation checks. */
+    public String extractJti(String token) {
+        return extractClaim(token, claims -> claims.get("jti", String.class));
+    }
+
+    /** Returns the token expiry as an Instant — used to set revocation TTL. */
+    public Instant extractExpiry(String token) {
+        return extractClaim(token, Claims::getExpiration).toInstant();
+    }
+
     public String generateAccessToken(UserDetails userDetails) {
-        return buildToken(Map.of("roles", userDetails.getAuthorities().stream().map(a -> a.getAuthority()).toList()), userDetails, accessExpirationMs);
+        return buildToken(
+                Map.of("roles", userDetails.getAuthorities().stream().map(a -> a.getAuthority()).toList()),
+                userDetails,
+                accessExpirationMs);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, refreshExpirationMs);
+        // Each refresh token gets a unique jti so individual tokens can be revoked.
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("jti", UUID.randomUUID().toString());
+        return buildToken(claims, userDetails, refreshExpirationMs);
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String username = extractEmail(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        return username != null && username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
     public long getAccessExpirationSeconds() {
