@@ -2,9 +2,9 @@ spring:
   application:
     name: security-suite-backend
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/security_suite_dev}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${DATABASE_URL:${DB_URL:jdbc:postgresql://localhost:5432/security_suite_dev}}
+    username: ${DATABASE_USERNAME:${DB_USERNAME:postgres}}
+    password: ${DATABASE_PASSWORD:${DB_PASSWORD:postgres}}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
