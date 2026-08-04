@@ -17,7 +17,9 @@ public record AlertDto(
         AlertStatus status,
         String message,
         Instant createdAt,
-        Instant resolvedAt
+        Instant resolvedAt,
+        Instant acknowledgedAt,
+        String acknowledgedBy
 ) {
     public static AlertDto from(Alert alert) {
         return new AlertDto(
@@ -30,7 +32,9 @@ public record AlertDto(
                 alert.getStatus(),
                 alert.getMessage(),
                 alert.getCreatedAt(),
-                alert.getResolvedAt()
+                alert.getResolvedAt(),
+                alert.getAcknowledgedAt(),
+                alert.getAcknowledgedBy()
         );
     }
 }

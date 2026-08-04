@@ -45,6 +45,23 @@ public class AlertService {
         return alert;
     }
 
+    public Alert get(UUID id) {
+        return alertRepository.findById(id).orElseThrow(() -> new NotFoundException("Alert not found"));
+    }
+
+    @Transactional
+    public Alert acknowledge(UUID id) {
+        Alert alert = alertRepository.findById(id).orElseThrow(() -> new NotFoundException("Alert not found"));
+        if (alert.getStatus() != AlertStatus.ACKNOWLEDGED) {
+            alert.setStatus(AlertStatus.ACKNOWLEDGED);
+            alert.setAcknowledgedAt(Instant.now());
+            org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            String username = auth != null ? auth.getName() : "usr_xx";
+            alert.setAcknowledgedBy(username);
+        }
+        return alert;
+    }
+
     @Transactional
     public Alert resolve(UUID id) {
         Alert alert = alertRepository.findById(id).orElseThrow(() -> new NotFoundException("Alert not found"));

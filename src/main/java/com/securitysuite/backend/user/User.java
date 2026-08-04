@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -19,10 +20,10 @@ public class User {
     private UUID id;
 
     @Column(nullable = false)
-    private String fullName;
+    private String name;
 
     @Column(nullable = false, unique = true)
-    private String email;
+    private String phoneNumber;
 
     @JsonIgnore
     @Column(nullable = false)
@@ -34,4 +35,7 @@ public class User {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
 }

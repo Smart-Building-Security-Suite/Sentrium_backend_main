@@ -13,8 +13,8 @@ import java.util.UUID;
 public class UserService {
     private final UserRepository userRepository;
 
-    public User getByEmail(String email) {
-        return userRepository.findByEmail(email)
+    public User getByPhoneNumber(String phoneNumber) {
+        return userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new NotFoundException("User not found"));
     }
 

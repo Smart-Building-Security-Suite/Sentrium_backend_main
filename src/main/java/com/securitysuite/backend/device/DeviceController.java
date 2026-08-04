@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -39,6 +40,30 @@ public class DeviceController {
     public ResponseEntity<Void> heartbeat(@PathVariable UUID id, @Valid @RequestBody HeartbeatRequest request) {
         deviceService.updateStatus(id, request.status());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<DeviceDto> getById(@PathVariable String id) {
+        return ResponseEntity.ok(DeviceDto.from(deviceService.getById(UUID.fromString(id))));
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
+    public ResponseEntity<DeviceDto> updateDevice(@PathVariable String id, @RequestBody DeviceDto request) {
+        return ResponseEntity.ok(deviceService.updateDevice(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<Void> deleteDevice(@PathVariable String id) {
+        deviceService.deleteDevice(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/unlock")
+    @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
+    public ResponseEntity<Map<String, Object>> unlock(@PathVariable String id) {
+        return ResponseEntity.ok(deviceService.unlockDevice(id));
     }
 
     public record DeviceRequest(@NotBlank String name, @NotNull DeviceType type, @NotNull UUID zoneId) {}

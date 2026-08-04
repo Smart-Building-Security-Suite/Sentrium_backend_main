@@ -26,7 +26,7 @@ public class NotificationController {
 
     @GetMapping
     public List<NotificationSummary> list(@AuthenticationPrincipal UserDetails principal) {
-        return notificationRepository.findByUserEmailOrderByUnreadFirst(principal.getUsername()).stream()
+        return notificationRepository.findByUserPhoneNumberOrderByUnreadFirst(principal.getUsername()).stream()
                 .map(NotificationSummary::from)
                 .toList();
     }
@@ -43,14 +43,14 @@ public class NotificationController {
     @PatchMapping("/read-all")
     @Transactional
     public ResponseEntity<Void> readAll(@AuthenticationPrincipal UserDetails principal) {
-        User user = userService.getByEmail(principal.getUsername());
+        User user = userService.getByPhoneNumber(principal.getUsername());
         notificationRepository.markAllReadByUserId(user.getId(), java.time.Instant.now());
         return ResponseEntity.noContent().build();
     }
 
-    private Notification ownedNotification(UUID id, String email) {
+    private Notification ownedNotification(UUID id, String phoneNumber) {
         Notification notification = notificationRepository.findById(id).orElseThrow(() -> new NotFoundException("Notification not found"));
-        if (!notification.getUser().getEmail().equals(email)) throw new NotFoundException("Notification not found");
+        if (!notification.getUser().getPhoneNumber().equals(phoneNumber)) throw new NotFoundException("Notification not found");
         return notification;
     }
 }

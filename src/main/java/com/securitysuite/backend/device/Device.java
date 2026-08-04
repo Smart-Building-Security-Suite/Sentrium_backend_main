@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -31,4 +32,7 @@ public class Device {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DeviceStatus status = DeviceStatus.IDLE;
+
+    @Column
+    private Instant lastHeartbeatAt;
 }

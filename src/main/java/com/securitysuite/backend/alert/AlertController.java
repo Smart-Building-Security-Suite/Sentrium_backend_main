@@ -51,6 +51,19 @@ public class AlertController {
         return ResponseEntity.status(HttpStatus.CREATED).body(AlertDto.from(alert));
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public AlertDto get(@PathVariable UUID id) {
+        return AlertDto.from(alertService.get(id));
+    }
+
+    @PatchMapping("/{id}/acknowledge")
+    @Operation(summary = "Acknowledge an alert")
+    @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
+    public AlertDto acknowledge(@PathVariable UUID id) {
+        return AlertDto.from(alertService.acknowledge(id));
+    }
+
     @PatchMapping("/{id}/resolve")
     @Operation(summary = "Resolve an alert")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")

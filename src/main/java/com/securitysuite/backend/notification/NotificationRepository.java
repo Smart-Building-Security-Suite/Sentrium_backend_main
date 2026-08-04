@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
-    @Query("select n from Notification n where n.user.email = :email order by case when n.readAt is null then 0 else 1 end, n.createdAt desc")
-    List<Notification> findByUserEmailOrderByUnreadFirst(@Param("email") String email);
+    @Query("select n from Notification n where n.user.phoneNumber = :phoneNumber order by case when n.readAt is null then 0 else 1 end, n.createdAt desc")
+    List<Notification> findByUserPhoneNumberOrderByUnreadFirst(@Param("phoneNumber") String phoneNumber);
 
     List<Notification> findByUserId(UUID userId);
 

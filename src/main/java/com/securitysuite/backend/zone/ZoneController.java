@@ -31,7 +31,7 @@ public class ZoneController {
                 .body(zoneService.create(request.name(), request.floor(), request.building()));
     }
 
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ZoneDto update(@PathVariable UUID id, @Valid @RequestBody ZoneRequest request) {
         return zoneService.update(id, request.name(), request.floor(), request.building());

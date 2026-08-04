@@ -43,12 +43,12 @@ public class NotificationListener {
                 try {
                     SimpleMailMessage message = new SimpleMailMessage();
                     message.setFrom(fromAddress);
-                    message.setTo(user.getEmail());
+                    message.setTo(user.getPhoneNumber()); // Assuming phone number works or email is used differently
                     message.setSubject("[CRITICAL] Security alert: " + alert.getMessage());
                     message.setText("Critical security alert in zone " + alert.getZone().getName() + ". Message: " + alert.getMessage());
                     mailSender.send(message);
                 } catch (Exception ex) {
-                    log.warn("Email send failed for user {} on alert {}: {}", user.getEmail(), alert.getId(), ex.getMessage());
+                    log.warn("Email send failed for user {} on alert {}: {}", user.getPhoneNumber(), alert.getId(), ex.getMessage());
                 }
             }
         }

@@ -1,5 +1,8 @@
 package com.securitysuite.backend.common;
 
+import com.securitysuite.backend.auth.OtpInvalidException;
+import com.securitysuite.backend.auth.OtpRateLimitException;
+import com.securitysuite.backend.auth.PhoneAlreadyRegisteredException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -30,7 +33,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException ex, HttpServletRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request.getRequestURI());
+        return build(HttpStatus.UNAUTHORIZED, "Invalid credentials", request.getRequestURI());
     }
 
     @ExceptionHandler({IllegalArgumentException.class, JwtException.class})
@@ -47,6 +50,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleForbidden(AccessDeniedException ex, HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, "Access is denied", request.getRequestURI());
     }
+
+    // ── OTP-specific handlers ────────────────────────────────────────────────
+
+    @ExceptionHandler(PhoneAlreadyRegisteredException.class)
+    public ResponseEntity<ApiError> handlePhoneAlreadyRegistered(PhoneAlreadyRegisteredException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(OtpRateLimitException.class)
+    public ResponseEntity<ApiError> handleOtpRateLimit(OtpRateLimitException ex, HttpServletRequest request) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(OtpInvalidException.class)
+    public ResponseEntity<ApiError> handleOtpInvalid(OtpInvalidException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest request) {

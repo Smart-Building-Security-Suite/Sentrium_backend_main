@@ -8,8 +8,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +51,53 @@ public class DeviceService {
     public void updateStatus(UUID id, DeviceStatus status) {
         Device device = getById(id);
         device.setStatus(status);
+        device.setLastHeartbeatAt(Instant.now());
         deviceRepository.save(device);
         log.info("Device heartbeat: id={}, status={}", id, status);
+    }
+
+    @Transactional
+    public DeviceDto updateDevice(String id, DeviceDto request) {
+        Device device = getById(UUID.fromString(id));
+        if (request.name() != null) {
+            device.setName(request.name());
+        }
+        if (request.type() != null) {
+            device.setType(request.type());
+        }
+        if (request.zoneId() != null) {
+            device.setZone(zoneService.getById(request.zoneId()));
+        }
+        deviceRepository.save(device);
+        log.info("Device updated: id={}", id);
+        return DeviceDto.from(device);
+    }
+
+    @Transactional
+    public void deleteDevice(String id) {
+        Device device = getById(UUID.fromString(id));
+        deviceRepository.delete(device);
+        log.info("Device deleted: id={}", id);
+    }
+
+    @Transactional
+    public Map<String, Object> unlockDevice(String id) {
+        Device device = getById(UUID.fromString(id));
+        if (device.getType() != DeviceType.ACCESS_POINT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device is not an ACCESS_POINT");
+        }
+        
+        String triggeredBy = "unknown";
+        if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
+            triggeredBy = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+
+        log.info("Device unlocked: id={}, triggeredBy={}", id, triggeredBy);
+        return Map.of(
+            "id", id,
+            "action", "UNLOCK",
+            "triggeredBy", triggeredBy,
+            "timestamp", Instant.now().toString()
+        );
     }
 }

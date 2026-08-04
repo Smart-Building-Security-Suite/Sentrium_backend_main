@@ -14,12 +14,17 @@ import org.springframework.stereotype.Service;
 public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
 
+    /**
+     * Spring Security uses phone number as the "username" for this application.
+     *
+     * @param phoneNumber the user's phone number (e.g. +12025550100)
+     */
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(String phoneNumber) throws UsernameNotFoundException {
+        User user = userRepository.findByPhoneNumber(phoneNumber)
                 .filter(User::isActive)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        return org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
+        return org.springframework.security.core.userdetails.User.withUsername(user.getPhoneNumber())
                 .password(user.getPasswordHash())
                 .authorities(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
                 .disabled(!user.isActive())

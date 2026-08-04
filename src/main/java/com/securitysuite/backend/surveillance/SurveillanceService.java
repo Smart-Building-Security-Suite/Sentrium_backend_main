@@ -1,0 +1,119 @@
+package com.securitysuite.backend.surveillance;
+
+import com.securitysuite.backend.common.NotFoundException;
+import com.securitysuite.backend.device.Device;
+import com.securitysuite.backend.device.DeviceRepository;
+import com.securitysuite.backend.surveillance.dto.CreateMotionEventRequest;
+import com.securitysuite.backend.surveillance.dto.FeedStatusDto;
+import com.securitysuite.backend.surveillance.dto.MotionEventDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class SurveillanceService {
+
+    private final MotionEventRepository motionEventRepository;
+    private final DeviceRepository deviceRepository;
+
+    /**
+     * Lists motion events with optional filtering by cameraId and/or detectedAt range.
+     * All combinations are supported:
+     *  - cameraId only       → findByCameraId
+     *  - from/to only        → findByDetectedAtBetween
+     *  - cameraId + from/to  → findByCameraIdAndDetectedAtBetween
+     *  - none                → findAll (paginated)
+     */
+    public Page<MotionEventDto> listMotionEvents(String cameraId, Instant from, Instant to, Pageable pageable) {
+        boolean hasCameraId = cameraId != null && !cameraId.isBlank();
+        boolean hasRange    = from != null && to != null;
+
+        Page<MotionEvent> page;
+        if (hasCameraId && hasRange) {
+            page = motionEventRepository.findByCameraIdAndDetectedAtBetween(cameraId, from, to, pageable);
+        } else if (hasCameraId) {
+            page = motionEventRepository.findByCameraId(cameraId, pageable);
+        } else if (hasRange) {
+            page = motionEventRepository.findByDetectedAtBetween(from, to, pageable);
+        } else {
+            page = motionEventRepository.findAll(pageable);
+        }
+
+        return page.map(this::toDto);
+    }
+
+    /**
+     * Creates a motion event, optionally resolving the camera name from the device registry.
+     * If the device is not found (e.g. unregistered gateway), the cameraId is used as a fallback name.
+     */
+    public MotionEventDto createMotionEvent(CreateMotionEventRequest request) {
+        String cameraName = resolveCameraName(request.cameraId());
+
+        MotionEvent event = MotionEvent.builder()
+                .cameraId(request.cameraId())
+                .cameraName(cameraName)
+                .detectedAt(Instant.now())
+                .confidence(request.confidence())
+                .build();
+
+        return toDto(motionEventRepository.save(event));
+    }
+
+    /**
+     * Returns the live feed status for a given camera (device).
+     *
+     * @throws NotFoundException if no device with the given ID exists
+     */
+    public FeedStatusDto getFeedStatus(String cameraId) {
+        Device device = findDeviceById(cameraId)
+                .orElseThrow(() -> new NotFoundException("Camera not found: " + cameraId));
+
+        // TODO: Add lastHeartbeatAt field to Device entity and replace null below.
+        Instant lastHeartbeatAt = null;
+
+        return new FeedStatusDto(
+                cameraId,
+                device.getStatus().toString(),
+                lastHeartbeatAt,
+                "1080p"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private String resolveCameraName(String cameraId) {
+        return findDeviceById(cameraId)
+                .map(Device::getName)
+                .orElse(cameraId);  // fall back to raw ID if device not registered
+    }
+
+    /**
+     * Attempts to parse cameraId as a UUID and look up the corresponding Device.
+     * Returns an empty Optional if the ID is malformed or not found.
+     */
+    private java.util.Optional<Device> findDeviceById(String cameraId) {
+        try {
+            UUID uuid = UUID.fromString(cameraId);
+            return deviceRepository.findById(uuid);
+        } catch (IllegalArgumentException e) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private MotionEventDto toDto(MotionEvent event) {
+        return new MotionEventDto(
+                event.getId(),
+                event.getCameraId(),
+                event.getCameraName(),
+                event.getDetectedAt(),
+                event.getConfidence()
+        );
+    }
+}

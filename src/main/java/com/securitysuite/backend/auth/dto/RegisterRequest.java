@@ -1,17 +1,16 @@
 package com.securitysuite.backend.auth.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Registration request. The role field is intentionally removed from the public API —
- * all self-registered users are created as SECURITY_OFFICER by default.
- * Admin accounts must be provisioned directly in the database.
+ * Final step of the OTP signup flow.
+ * The client presents the signupToken received from POST /auth/signup/otp/verify
+ * together with the desired display name and password.
  */
 public record RegisterRequest(
-        @NotBlank String fullName,
-        @Email @NotBlank String email,
+        @NotBlank String signupToken,
+        @NotBlank String name,
         @NotBlank @Size(min = 8) String password
 ) {
 }

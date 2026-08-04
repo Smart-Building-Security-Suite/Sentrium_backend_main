@@ -11,6 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import com.securitysuite.backend.device.Device;
+import com.securitysuite.backend.alert.Alert;
 
 @Service
 @RequiredArgsConstructor
@@ -48,4 +52,25 @@ public class AnalyticsService {
 
 
     public record AnalyticsSummary(String zone, LocalDate date, long incidentCount, double avgResolutionMins) {}
+
+    public List<TopDeviceDto> getTopDevices(String metric, int limit) {
+        if (!"incidentCount".equals(metric)) {
+            return List.of();
+        }
+        
+        List<Alert> allAlerts = alertRepository.findAll();
+        Map<Device, Long> counts = allAlerts.stream()
+                .filter(a -> a.getDevice() != null)
+                .collect(Collectors.groupingBy(Alert::getDevice, Collectors.counting()));
+                
+        return counts.entrySet().stream()
+                .sorted(Map.Entry.<Device, Long>comparingByValue().reversed())
+                .limit(limit)
+                .map(e -> new TopDeviceDto(
+                        e.getKey().getId().toString(),
+                        e.getKey().getName(),
+                        e.getValue().intValue()
+                ))
+                .toList();
+    }
 }

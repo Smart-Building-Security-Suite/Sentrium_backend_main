@@ -42,11 +42,11 @@ public class ReportService {
     private String reportsDir;
 
     @Transactional
-    public Report generate(ReportRequest request, String requesterEmail) {
+    public Report generate(ReportRequest request, String requesterPhoneNumber) {
         if (request.rangeEnd().isBefore(request.rangeStart())) {
             throw new IllegalArgumentException("rangeEnd: must be on or after rangeStart");
         }
-        User requester = userService.getByEmail(requesterEmail);
+        User requester = userService.getByPhoneNumber(requesterPhoneNumber);
         Report report = new Report();
         report.setRequestedBy(requester);
         report.setType(request.type());
@@ -78,9 +78,9 @@ public class ReportService {
         return reportRepository.findByRequestedByEmail(email);
     }
 
-    public Resource loadFile(UUID id, String requesterEmail) {
+    public Resource loadFile(UUID id, String requesterPhoneNumber) {
         Report report = reportRepository.findById(id).orElseThrow(() -> new NotFoundException("Report not found"));
-        if (!report.getRequestedBy().getEmail().equals(requesterEmail)) {
+        if (!report.getRequestedBy().getPhoneNumber().equals(requesterPhoneNumber)) {
             throw new NotFoundException("Report not found");
         }
         if (report.getFileUrl() == null) {
@@ -97,9 +97,9 @@ public class ReportService {
     private Instant end(java.time.LocalDate date) { return date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC); }
 
     private void writeAccessLogsCsv(Path file, List<AccessLog> rows) throws IOException {
-        CSVFormat format = CSVFormat.DEFAULT.builder().setHeader("id","userEmail","deviceName","zoneName","result","timestamp").build();
+        CSVFormat format = CSVFormat.DEFAULT.builder().setHeader("id","userPhoneNumber","deviceName","zoneName","result","timestamp").build();
         try (CSVPrinter printer = new CSVPrinter(new OutputStreamWriter(Files.newOutputStream(file), StandardCharsets.UTF_8), format)) {
-            for (AccessLog row : rows) printer.printRecord(row.getId(), row.getUser().getEmail(), row.getDevice().getName(), row.getZone().getName(), row.getResult(), row.getTimestamp());
+            for (AccessLog row : rows) printer.printRecord(row.getId(), row.getUser().getPhoneNumber(), row.getDevice().getName(), row.getZone().getName(), row.getResult(), row.getTimestamp());
         }
     }
 
@@ -116,7 +116,7 @@ public class ReportService {
         try {
             document.open();
             document.add(new Paragraph("Access Log Report"));
-            for (AccessLog row : rows) document.add(new Paragraph(row.getTimestamp() + " | " + row.getUser().getEmail() + " | " + row.getZone().getName() + " | " + row.getResult()));
+            for (AccessLog row : rows) document.add(new Paragraph(row.getTimestamp() + " | " + row.getUser().getPhoneNumber() + " | " + row.getZone().getName() + " | " + row.getResult()));
         } finally {
             document.close();
         }

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/access-logs")
+@RequestMapping("/access/logs")
 @RequiredArgsConstructor
 @Tag(name = "Access Logs")
 public class AccessLogController {

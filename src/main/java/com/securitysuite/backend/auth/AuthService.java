@@ -1,15 +1,12 @@
 package com.securitysuite.backend.auth;
 
-import com.securitysuite.backend.auth.dto.AuthResponse;
-import com.securitysuite.backend.auth.dto.LoginRequest;
-import com.securitysuite.backend.auth.dto.RegisterRequest;
-import com.securitysuite.backend.auth.dto.UserSummary;
+import com.securitysuite.backend.auth.dto.*;
 import com.securitysuite.backend.common.NotFoundException;
 import com.securitysuite.backend.security.CustomUserDetailsService;
 import com.securitysuite.backend.security.JwtService;
+import com.securitysuite.backend.user.Role;
 import com.securitysuite.backend.user.User;
 import com.securitysuite.backend.user.UserRepository;
-import com.securitysuite.backend.user.Role;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,45 +22,35 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
     private final RevokedTokenRepository revokedTokenRepository;
+    private final OtpRepository otpRepository;
+    private final PendingSignupRepository pendingSignupRepository;
 
-    @Transactional
-    public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("email: already registered");
-        }
-        User user = new User();
-        user.setFullName(request.fullName());
-        user.setEmail(request.email());
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
-        // All public registrations default to SECURITY_OFFICER.
-        // ADMIN accounts must be provisioned directly in the database.
-        user.setRole(Role.SECURITY_OFFICER);
-        user.setActive(true);
-        userRepository.save(user);
-        log.info("New user registered: {} ({})", request.email(), user.getRole());
-        UserDetails details = userDetailsService.loadUserByUsername(user.getEmail());
-        return new AuthResponse(jwtService.generateAccessToken(details), jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
-    }
+    // ── Login ─────────────────────────────────────────────────────────────────
 
     public AuthResponse login(LoginRequest request, HttpServletResponse response) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
-        User user = userRepository.findByEmail(request.email())
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.phoneNumber(), request.password()));
+        User user = userRepository.findByPhoneNumber(request.phoneNumber())
                 .orElseThrow(() -> new NotFoundException("User not found"));
-        UserDetails details = userDetailsService.loadUserByUsername(user.getEmail());
+        UserDetails details = userDetailsService.loadUserByUsername(user.getPhoneNumber());
         setRefreshCookie(response, jwtService.generateRefreshToken(details));
         return new AuthResponse(jwtService.generateAccessToken(details), jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
     }
+
+    // ── Refresh ───────────────────────────────────────────────────────────────
 
     public AuthResponse refresh(String refreshToken, HttpServletResponse response) {
         try {
@@ -72,10 +59,10 @@ public class AuthService {
             if (jti != null && revokedTokenRepository.existsByJti(jti)) {
                 throw new BadCredentialsException("Refresh token has been revoked");
             }
-            String email = jwtService.extractEmail(refreshToken);
-            User user = userRepository.findByEmail(email)
+            String phoneNumber = jwtService.extractEmail(refreshToken);
+            User user = userRepository.findByPhoneNumber(phoneNumber)
                     .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
-            UserDetails details = userDetailsService.loadUserByUsername(email);
+            UserDetails details = userDetailsService.loadUserByUsername(phoneNumber);
             if (!jwtService.isTokenValid(refreshToken, details)) {
                 throw new BadCredentialsException("Invalid refresh token");
             }
@@ -87,6 +74,8 @@ public class AuthService {
             throw new BadCredentialsException("Invalid refresh token");
         }
     }
+
+    // ── Logout ────────────────────────────────────────────────────────────────
 
     public void clearRefreshCookie(HttpServletResponse response, String refreshToken) {
         // Revoke the token server-side so it cannot be reused even if the cookie is captured.
@@ -107,6 +96,128 @@ public class AuthService {
                 .toString());
     }
 
+    // ── OTP: Request ─────────────────────────────────────────────────────────
+
+    @Transactional
+    public OtpRequestResponse requestOtp(String phoneNumber) {
+        // 1. Guard: phone already has an account
+        if (userRepository.existsByPhoneNumber(phoneNumber)) {
+            throw new PhoneAlreadyRegisteredException(phoneNumber);
+        }
+
+        Instant now = Instant.now();
+
+        // 2. Rate-limit: reject if a valid OTP was created within the last 30 seconds
+        otpRepository.findTopByPhoneNumberOrderByCreatedAtDesc(phoneNumber)
+                .filter(rec -> rec.getCreatedAt().isAfter(now.minusSeconds(30)))
+                .ifPresent(rec -> { throw new OtpRateLimitException(); });
+
+        // 3. Generate 6-digit OTP
+        String otp = String.format("%06d", (int) (Math.random() * 1_000_000));
+        String otpHash = passwordEncoder.encode(otp);
+
+        // 4. Persist
+        OtpRecord record = OtpRecord.builder()
+                .phoneNumber(phoneNumber)
+                .otpHash(otpHash)
+                .createdAt(now)
+                .expiresAt(now.plusSeconds(300))
+                .verified(false)
+                .attempts(0)
+                .build();
+        otpRepository.save(record);
+
+        // 5. Stub: log OTP (replace with SMS gateway integration)
+        log.info("OTP for {}: {}", phoneNumber, otp);
+
+        return OtpRequestResponse.of(phoneNumber, now);
+    }
+
+    // ── OTP: Verify ───────────────────────────────────────────────────────────
+
+    @Transactional
+    public OtpVerifyResponse verifyOtp(String phoneNumber, String otp) {
+        Instant now = Instant.now();
+
+        OtpRecord record = otpRepository.findTopByPhoneNumberOrderByCreatedAtDesc(phoneNumber)
+                .orElseThrow(() -> new OtpInvalidException("OTP expired or not found"));
+
+        // Check expiry
+        if (record.getExpiresAt().isBefore(now)) {
+            otpRepository.delete(record);
+            throw new OtpInvalidException("OTP expired or not found");
+        }
+
+        // Increment attempt count first
+        record.setAttempts(record.getAttempts() + 1);
+
+        if (record.getAttempts() > 5) {
+            otpRepository.delete(record);
+            throw new OtpInvalidException("Too many failed attempts. Please request a new OTP.");
+        }
+
+        // Verify the code
+        if (!passwordEncoder.matches(otp, record.getOtpHash())) {
+            otpRepository.save(record); // persist incremented attempts
+            int remaining = 5 - record.getAttempts();
+            throw new OtpInvalidException("Invalid OTP. " + remaining + " attempt(s) remaining.");
+        }
+
+        // Success — mark verified and clean up
+        record.setVerified(true);
+        otpRepository.delete(record);
+
+        // Issue a signup token valid for 10 minutes
+        String signupToken = UUID.randomUUID().toString();
+        PendingSignup pending = PendingSignup.builder()
+                .phoneNumber(phoneNumber)
+                .signupToken(signupToken)
+                .createdAt(now)
+                .expiresAt(now.plusSeconds(600))
+                .used(false)
+                .build();
+        // Remove any stale pending signups for this number first
+        pendingSignupRepository.deleteByPhoneNumber(phoneNumber);
+        pendingSignupRepository.save(pending);
+
+        return OtpVerifyResponse.of(phoneNumber, signupToken);
+    }
+
+    // ── Signup: Complete ──────────────────────────────────────────────────────
+
+    @Transactional
+    public AuthResponse completeSignup(String signupToken, String name, String password, HttpServletResponse response) {
+        Instant now = Instant.now();
+
+        PendingSignup pending = pendingSignupRepository.findBySignupToken(signupToken)
+                .orElseThrow(() -> new BadCredentialsException("Invalid or expired signup token"));
+
+        if (pending.isUsed() || pending.getExpiresAt().isBefore(now)) {
+            throw new BadCredentialsException("Invalid or expired signup token");
+        }
+
+        // Mark token as consumed
+        pending.setUsed(true);
+        pendingSignupRepository.save(pending);
+
+        // Create the user account
+        User user = new User();
+        user.setPhoneNumber(pending.getPhoneNumber());
+        user.setName(name);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setRole(Role.VIEWER);
+        user.setActive(true);
+        userRepository.save(user);
+
+        log.info("New user registered via OTP flow: {} ({})", pending.getPhoneNumber(), Role.VIEWER);
+
+        UserDetails details = userDetailsService.loadUserByUsername(user.getPhoneNumber());
+        setRefreshCookie(response, jwtService.generateRefreshToken(details));
+        return new AuthResponse(jwtService.generateAccessToken(details), jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
     private void revokeToken(String refreshToken) {
         try {
             String jti = jwtService.extractJti(refreshToken);
@@ -122,11 +233,13 @@ public class AuthService {
         }
     }
 
-    /** Nightly cleanup of expired revoked tokens. */
+    /** Nightly cleanup of expired revoked tokens and OTP records. */
     @Scheduled(cron = "0 0 3 * * *")
-    public void pruneExpiredRevokedTokens() {
-        revokedTokenRepository.deleteExpiredBefore(Instant.now());
-        log.info("Pruned expired revoked tokens");
+    public void pruneExpiredRecords() {
+        Instant now = Instant.now();
+        revokedTokenRepository.deleteExpiredBefore(now);
+        otpRepository.deleteByExpiresAtBefore(now);
+        log.info("Pruned expired revoked tokens and OTP records");
     }
 
     private void setRefreshCookie(HttpServletResponse response, String refreshToken) {

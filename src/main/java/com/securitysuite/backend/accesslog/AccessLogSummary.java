@@ -6,7 +6,7 @@ import java.util.UUID;
 public record AccessLogSummary(
         UUID id,
         UUID userId,
-        String userEmail,
+        String userName,
         UUID deviceId,
         String deviceName,
         UUID zoneId,
@@ -18,7 +18,7 @@ public record AccessLogSummary(
         return new AccessLogSummary(
                 accessLog.getId(),
                 accessLog.getUser().getId(),
-                accessLog.getUser().getEmail(),
+                accessLog.getUser().getName(),
                 accessLog.getDevice().getId(),
                 accessLog.getDevice().getName(),
                 accessLog.getZone().getId(),

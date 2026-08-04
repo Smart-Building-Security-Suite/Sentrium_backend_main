@@ -6,7 +6,7 @@ import java.util.UUID;
 public record ReportSummary(
         UUID id,
         UUID requestedById,
-        String requestedByEmail,
+        String requestedByPhoneNumber,
         ReportType type,
         ReportFormat format,
         LocalDate rangeStart,
@@ -17,7 +17,7 @@ public record ReportSummary(
         return new ReportSummary(
                 report.getId(),
                 report.getRequestedBy().getId(),
-                report.getRequestedBy().getEmail(),
+                report.getRequestedBy().getPhoneNumber(),
                 report.getType(),
                 report.getFormat(),
                 report.getRangeStart(),

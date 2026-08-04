@@ -42,4 +42,8 @@ public class Alert {
     private Instant createdAt = Instant.now();
 
     private Instant resolvedAt;
+
+    private Instant acknowledgedAt;
+
+    private String acknowledgedBy;
 }
