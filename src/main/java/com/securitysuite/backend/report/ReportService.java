@@ -74,8 +74,8 @@ public class ReportService {
         }
     }
 
-    public List<Report> listForUser(String email) {
-        return reportRepository.findByRequestedByEmail(email);
+    public List<Report> listForUser(String phoneNumber) {
+        return reportRepository.findByRequestedByPhoneNumber(phoneNumber);
     }
 
     public Resource loadFile(UUID id, String requesterPhoneNumber) {
