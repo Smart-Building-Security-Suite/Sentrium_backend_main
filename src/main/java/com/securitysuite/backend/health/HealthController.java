@@ -1,5 +1,6 @@
 package com.securitysuite.backend.health;
 
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +22,8 @@ public class HealthController {
     }
 
     @GetMapping
+    @Operation(summary = "Health check endpoint",
+               description = "Returns the health status of the application and its dependencies including database connectivity. Used by monitoring systems and load balancers. Publicly accessible.")
     public ResponseEntity<Map<String, Object>> health() {
         String dbStatus = "UP";
         try (Connection conn = dataSource.getConnection()) {

@@ -25,28 +25,32 @@ public class PatrolController {
 
     // ===== ROUTES =====
     @GetMapping("/routes")
-    @Operation(summary = "List all patrol routes")
+    @Operation(summary = "List all patrol routes",
+               description = "Retrieves all defined patrol routes including active and inactive routes. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<List<PatrolRouteDto>> listRoutes() {
         return ResponseEntity.ok(patrolService.listRoutes());
     }
 
     @GetMapping("/routes/enabled")
-    @Operation(summary = "List enabled patrol routes")
+    @Operation(summary = "List enabled patrol routes",
+               description = "Retrieves only active/enabled patrol routes available for starting new patrol sessions. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<List<PatrolRouteDto>> listEnabledRoutes() {
         return ResponseEntity.ok(patrolService.listEnabledRoutes());
     }
 
     @GetMapping("/routes/{id}")
-    @Operation(summary = "Get route details")
+    @Operation(summary = "Get route details",
+               description = "Retrieves complete details of a patrol route including name, description, estimated duration, and checkpoint count. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolRouteDto> getRoute(@PathVariable UUID id) {
         return ResponseEntity.ok(patrolService.getRoute(id));
     }
 
     @PostMapping("/routes")
-    @Operation(summary = "Create new patrol route")
+    @Operation(summary = "Create new patrol route",
+               description = "Defines a new patrol route with name, description, and estimated duration. Checkpoints are added separately. Admin only.")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PatrolRouteDto> createRoute(@Valid @RequestBody CreateRouteRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -54,7 +58,8 @@ public class PatrolController {
     }
 
     @GetMapping("/routes/{id}/checkpoints")
-    @Operation(summary = "Get checkpoints for a route")
+    @Operation(summary = "Get checkpoints for a route",
+               description = "Retrieves all checkpoints associated with a patrol route in sequence order. Each checkpoint has a QR code for scanning. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<List<PatrolCheckpointDto>> getRouteCheckpoints(@PathVariable UUID id) {
         return ResponseEntity.ok(patrolService.getRouteCheckpoints(id));
@@ -62,7 +67,8 @@ public class PatrolController {
 
     // ===== CHECKPOINTS =====
     @PostMapping("/routes/{routeId}/checkpoints")
-    @Operation(summary = "Add checkpoint to route")
+    @Operation(summary = "Add checkpoint to route",
+               description = "Adds a new checkpoint to a patrol route with a unique QR code. Specify location, zone, sequence order, and whether it's required. Admin only.")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PatrolCheckpointDto> addCheckpoint(
             @PathVariable UUID routeId,
@@ -73,7 +79,8 @@ public class PatrolController {
     }
 
     @GetMapping("/checkpoints/qr/{qrCode}")
-    @Operation(summary = "Get checkpoint by QR code")
+    @Operation(summary = "Get checkpoint by QR code",
+               description = "Looks up a checkpoint using its QR code value. Used during patrol sessions to verify scan validity. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolCheckpointDto> getCheckpointByQr(@PathVariable String qrCode) {
         return ResponseEntity.ok(patrolService.getCheckpointByQrCode(qrCode));
@@ -81,7 +88,8 @@ public class PatrolController {
 
     // ===== SESSIONS =====
     @PostMapping("/sessions")
-    @Operation(summary = "Start a patrol session")
+    @Operation(summary = "Start a patrol session",
+               description = "Initiates a new patrol session for a specific route. Records the officer and start time. The officer must scan checkpoints in sequence. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolSessionDto> startSession(
             @Valid @RequestBody StartSessionRequest request,
@@ -91,7 +99,8 @@ public class PatrolController {
     }
 
     @PostMapping("/sessions/{id}/scan")
-    @Operation(summary = "Scan a checkpoint QR code")
+    @Operation(summary = "Scan a checkpoint QR code",
+               description = "Records a checkpoint scan during an active patrol session. Validates QR code, records timestamp and GPS location. Optional notes for observations. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolCheckpointScanDto> scanCheckpoint(
             @PathVariable UUID id,
@@ -100,7 +109,8 @@ public class PatrolController {
     }
 
     @PostMapping("/sessions/{id}/complete")
-    @Operation(summary = "Complete patrol session")
+    @Operation(summary = "Complete patrol session",
+               description = "Ends an active patrol session successfully. Records completion time and validates all required checkpoints were scanned. Optional completion notes. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolSessionDto> completeSession(
             @PathVariable UUID id,
@@ -110,7 +120,8 @@ public class PatrolController {
     }
 
     @PostMapping("/sessions/{id}/abort")
-    @Operation(summary = "Abort patrol session")
+    @Operation(summary = "Abort patrol session",
+               description = "Terminates a patrol session early due to emergency or other reasons. Requires abort reason. Session is marked incomplete. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolSessionDto> abortSession(
             @PathVariable UUID id,
@@ -119,14 +130,16 @@ public class PatrolController {
     }
 
     @GetMapping("/sessions/{id}/scans")
-    @Operation(summary = "Get scans for a session")
+    @Operation(summary = "Get scans for a session",
+               description = "Retrieves all checkpoint scans recorded during a patrol session with timestamps and any notes or linked incidents. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<List<PatrolCheckpointScanDto>> getSessionScans(@PathVariable UUID id) {
         return ResponseEntity.ok(patrolService.getSessionScans(id));
     }
 
     @GetMapping("/sessions/my-active")
-    @Operation(summary = "Get my active patrol session")
+    @Operation(summary = "Get my active patrol session",
+               description = "Retrieves the currently active patrol session for the authenticated officer, if any. Returns null if no active session. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolSessionDto> getMyActiveSession(@AuthenticationPrincipal UserDetails principal) {
         // Get current user ID from phone number
@@ -135,7 +148,8 @@ public class PatrolController {
     }
 
     @PatchMapping("/scans/{scanId}/link-incident")
-    @Operation(summary = "Link incident to checkpoint scan")
+    @Operation(summary = "Link incident to checkpoint scan",
+               description = "Associates an incident report with a specific checkpoint scan, creating an audit trail between patrol observations and incident records. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolCheckpointScanDto> linkIncident(
             @PathVariable UUID scanId,

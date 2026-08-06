@@ -22,19 +22,24 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List all users in the system",
+               description = "Retrieves a list of all registered users with their details including role and status. Admin access only.")
     public List<UserDto> list() {
         return userService.listAll();
     }
 
     @PatchMapping("/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update a user's role",
+               description = "Changes the role of a specific user (ADMIN, SECURITY_OFFICER, or VIEWER). Admin access only.")
     public UserDto updateRole(@PathVariable UUID id, @Valid @RequestBody RoleUpdateRequest request) {
         return userService.updateRole(id, request.role());
     }
 
     @PatchMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Deactivate a user without deleting history")
+    @Operation(summary = "Deactivate a user without deleting history",
+               description = "Soft-deletes a user account by marking it inactive. Preserves all audit history and associated records. Admin access only.")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
         userService.deactivate(id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();

@@ -1,6 +1,7 @@
 package com.securitysuite.backend.alert;
 
 import com.securitysuite.backend.common.NotFoundException;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -20,12 +21,16 @@ public class AlertRuleController {
     private final AlertRuleRepository repository;
 
     @GetMapping
+    @Operation(summary = "List all alert rules",
+               description = "Retrieves all automated alert rules that define when and how alerts are triggered based on system events, thresholds, and time windows.")
     public List<AlertRuleDto> list() {
         return repository.findAll().stream().map(AlertRuleDto::from).toList();
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create a new alert rule",
+               description = "Defines a new automated alert rule with type, threshold, time window, and severity. Rules are evaluated by the system to generate alerts automatically. Enabled by default. Admin only.")
     public ResponseEntity<AlertRuleDto> create(@Valid @RequestBody AlertRuleRequest request) {
         AlertRule rule = new AlertRule();
         rule.setRuleId(request.ruleId());
@@ -37,13 +42,15 @@ public class AlertRuleController {
         if (request.enabled() != null) {
             rule.setEnabled(request.enabled());
         } else {
-            rule.setEnabled(true); // default to true if not specified? 
+            rule.setEnabled(true); // default to true if not specified?
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(AlertRuleDto.from(repository.save(rule)));
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update an alert rule",
+               description = "Modifies an existing alert rule. Can update thresholds, time windows, severity, or enable/disable the rule. Admin only.")
     public AlertRuleDto update(@PathVariable Long id, @RequestBody AlertRuleRequest request) {
         AlertRule rule = repository.findById(id).orElseThrow(() -> new NotFoundException("Alert rule not found"));
         if (request.ruleId() != null) rule.setRuleId(request.ruleId());

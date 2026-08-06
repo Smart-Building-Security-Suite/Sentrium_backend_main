@@ -304,7 +304,7 @@ public class AuthService {
     // ── Signup: Complete ──────────────────────────────────────────────────────
 
     @Transactional
-    public AuthResponse completeSignup(String signupToken, String name, String password, HttpServletResponse response) {
+    public AuthResponse completeSignup(String signupToken, String name, String password, Role role, HttpServletResponse response) {
         Instant now = Instant.now();
 
         PendingSignup pending = pendingSignupRepository.findBySignupToken(signupToken)
@@ -323,11 +323,11 @@ public class AuthService {
         user.setPhoneNumber(pending.getPhoneNumber());
         user.setName(name);
         user.setPasswordHash(passwordEncoder.encode(password));
-        user.setRole(Role.VIEWER);
+        user.setRole(role);
         user.setActive(true);
         userRepository.save(user);
 
-        log.info("New user registered via OTP flow: {} ({})", pending.getPhoneNumber(), Role.VIEWER);
+        log.info("New user registered via OTP flow: {} ({})", pending.getPhoneNumber(), role);
 
         UserDetails details = userDetailsService.loadUserByUsername(user.getPhoneNumber());
         setRefreshCookie(response, jwtService.generateRefreshToken(details));

@@ -24,10 +24,9 @@ import java.util.UUID;
 public class AlertController {
     private final AlertService alertService;
 
-    /**
-     * Lists alerts with optional filtering. Paginated (default page size 20) to prevent OOM on large datasets.
-     */
     @GetMapping
+    @Operation(summary = "List alerts with filtering",
+               description = "Retrieves paginated alerts with optional filters by status and severity. Default page size is 20 to prevent memory issues. Available to all authenticated users.")
     @PreAuthorize("isAuthenticated()")
     public Page<AlertDto> list(
             @RequestParam(required = false) AlertStatus status,
@@ -44,6 +43,8 @@ public class AlertController {
     }
 
     @PostMapping
+    @Operation(summary = "Create a new alert",
+               description = "Manually creates a security alert for a zone or device with specified severity and message. Typically used for system-generated or manual escalations. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<AlertDto> create(@Valid @RequestBody AlertRequest request) {
         Alert alert = alertService.create(
@@ -52,27 +53,32 @@ public class AlertController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get alert by ID",
+               description = "Retrieves detailed information about a specific alert including status, severity, and timestamps. Available to all authenticated users.")
     @PreAuthorize("isAuthenticated()")
     public AlertDto get(@PathVariable UUID id) {
         return AlertDto.from(alertService.get(id));
     }
 
     @PatchMapping("/{id}/acknowledge")
-    @Operation(summary = "Acknowledge an alert")
+    @Operation(summary = "Acknowledge an alert",
+               description = "Marks the alert as acknowledged, indicating that security personnel are aware and responding. Changes status to ACKNOWLEDGED. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public AlertDto acknowledge(@PathVariable UUID id) {
         return AlertDto.from(alertService.acknowledge(id));
     }
 
     @PatchMapping("/{id}/resolve")
-    @Operation(summary = "Resolve an alert")
+    @Operation(summary = "Resolve an alert",
+               description = "Marks the alert as resolved after the issue has been addressed. Changes status to RESOLVED and records resolution time. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public AlertDto resolve(@PathVariable UUID id) {
         return AlertDto.from(alertService.resolve(id));
     }
 
     @GetMapping("/recent")
-    @Operation(summary = "Get recent open alerts for dashboard")
+    @Operation(summary = "Get recent open alerts for dashboard",
+               description = "Retrieves the most recent open (OPEN or ACKNOWLEDGED) alerts for real-time monitoring. Limited to 50 records max. Available to all authenticated users.")
     @PreAuthorize("isAuthenticated()")
     public List<AlertDto> getRecent(@RequestParam(defaultValue = "10") int limit) {
         return alertService.getRecentOpenAlerts(Math.min(limit, 50))

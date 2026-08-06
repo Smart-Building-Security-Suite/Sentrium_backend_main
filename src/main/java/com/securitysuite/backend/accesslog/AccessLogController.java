@@ -7,6 +7,7 @@ import com.securitysuite.backend.user.User;
 import com.securitysuite.backend.user.UserRepository;
 import com.securitysuite.backend.zone.Zone;
 import com.securitysuite.backend.zone.ZoneRepository;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -32,6 +33,8 @@ public class AccessLogController {
     private final ZoneRepository zoneRepository;
 
     @GetMapping
+    @Operation(summary = "List access logs",
+               description = "Retrieves paginated access control logs showing who accessed which zones through which devices. Optionally filter by zone. 20 records per page. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public Page<AccessLogSummary> list(@RequestParam(required = false) UUID zoneId, @RequestParam(defaultValue = "0") int page) {
         Pageable pageable = PageRequest.of(page, 20);
@@ -40,6 +43,8 @@ public class AccessLogController {
     }
 
     @PostMapping
+    @Operation(summary = "Create an access log entry",
+               description = "Manually records an access attempt showing user, device, zone, and result (GRANTED, DENIED, FORCED, etc.). Typically created by access control systems. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<AccessLogSummary> create(@Valid @RequestBody AccessLogRequest request) {
         User user = userRepository.findById(request.userId()).orElseThrow(() -> new NotFoundException("User not found"));

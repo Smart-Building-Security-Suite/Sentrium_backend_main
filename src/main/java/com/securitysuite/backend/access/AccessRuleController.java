@@ -1,6 +1,7 @@
 package com.securitysuite.backend.access;
 
 import com.securitysuite.backend.common.NotFoundException;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -20,12 +21,16 @@ public class AccessRuleController {
     private final AccessRuleRepository repository;
 
     @GetMapping
+    @Operation(summary = "List all access rules",
+               description = "Retrieves all access control rules defining which roles can access which doors/zones and the required clearance level.")
     public List<AccessRuleDto> list() {
         return repository.findAll().stream().map(AccessRuleDto::from).toList();
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create a new access rule",
+               description = "Defines a new access control rule specifying door/zone, required clearance level, and allowed roles. Used by access control systems to enforce permissions. Admin only.")
     public ResponseEntity<AccessRuleDto> create(@Valid @RequestBody AccessRuleRequest request) {
         AccessRule rule = new AccessRule();
         rule.setRuleId(request.ruleId());
@@ -37,6 +42,8 @@ public class AccessRuleController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update an access rule",
+               description = "Modifies an existing access control rule. Can update door assignment, required level, or allowed roles. Admin only.")
     public AccessRuleDto update(@PathVariable Long id, @RequestBody AccessRuleRequest request) {
         AccessRule rule = repository.findById(id).orElseThrow(() -> new NotFoundException("Access rule not found"));
         if (request.ruleId() != null) rule.setRuleId(request.ruleId());

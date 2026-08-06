@@ -40,7 +40,8 @@ public class SurveillanceController {
      * @param sort     sort field and direction, e.g. "detectedAt,desc"
      */
     @GetMapping("/motion-events")
-    @Operation(summary = "List motion events", description = "Returns a paginated list of motion events, optionally filtered by camera ID and/or date range.")
+    @Operation(summary = "List motion events",
+               description = "Returns a paginated list of motion detection events from surveillance cameras. Filter by camera ID and/or date range (ISO-8601 dates). Sorted by detection time (newest first) by default. Available to all authenticated users.")
     @PreAuthorize("isAuthenticated()")
     public Page<MotionEventDto> listMotionEvents(
             @RequestParam(required = false) String cameraId,
@@ -68,19 +69,17 @@ public class SurveillanceController {
      * Restricted to ADMIN and SECURITY_OFFICER roles (device/gateway callers).
      */
     @PostMapping("/motion-events")
-    @Operation(summary = "Record a motion event", description = "Creates a new motion detection event for the specified camera.")
+    @Operation(summary = "Record a motion event",
+               description = "Creates a new motion detection event for a camera. Records camera ID, detection time, and optional snapshot URL. Typically called by surveillance systems or gateways. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<MotionEventDto> createMotionEvent(@Valid @RequestBody CreateMotionEventRequest request) {
         MotionEventDto created = surveillanceService.createMotionEvent(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    /**
-     * Returns the live feed status for a specific camera.
-     * Accessible by all authenticated users (ADMIN, SECURITY_OFFICER, VIEWER).
-     */
     @GetMapping("/feed-status/{cameraId}")
-    @Operation(summary = "Get camera feed status", description = "Returns current status, last heartbeat, and resolution for the specified camera.")
+    @Operation(summary = "Get camera feed status",
+               description = "Returns the current operational status of a camera feed including online/offline status, last heartbeat timestamp, and stream resolution. Used for monitoring camera health. Available to all authenticated users.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<FeedStatusDto> getFeedStatus(@PathVariable String cameraId) {
         return ResponseEntity.ok(surveillanceService.getFeedStatus(cameraId));

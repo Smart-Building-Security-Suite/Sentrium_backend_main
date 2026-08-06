@@ -64,11 +64,11 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /auth/signup/complete - Success")
     void completeSignupSuccess() throws Exception {
-        RegisterRequest request = new RegisterRequest("signup-token-123", "Test User", "Secret123!");
+        RegisterRequest request = new RegisterRequest("signup-token-123", "Test User", "Secret123!", Role.SECURITY_OFFICER);
         UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "+1234567890", Role.SECURITY_OFFICER);
         AuthResponse response = new AuthResponse("mock-access-token", 900L, summary);
 
-        given(authService.completeSignup(eq("signup-token-123"), eq("Test User"), eq("Secret123!"), any())).willReturn(response);
+        given(authService.completeSignup(eq("signup-token-123"), eq("Test User"), eq("Secret123!"), eq(Role.SECURITY_OFFICER), any())).willReturn(response);
 
         mockMvc.perform(post("/auth/signup/complete")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -1,5 +1,6 @@
 package com.securitysuite.backend.zone;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,8 @@ public class ZoneController {
     private final ZoneService zoneService;
 
     @GetMapping
+    @Operation(summary = "List all zones",
+               description = "Retrieves all security zones (physical areas) in the facility. Supports pagination with sorting by name, floor, or building. Use paginated=true for large datasets.")
     public ResponseEntity<?> list(
             @RequestParam(required = false, defaultValue = "false") boolean paginated,
             @RequestParam(defaultValue = "0") int page,
@@ -43,6 +46,8 @@ public class ZoneController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create a new zone",
+               description = "Defines a new security zone with name, floor, and building. Zones are used to organize devices and control access. Admin only.")
     public ResponseEntity<ZoneDto> create(@Valid @RequestBody ZoneRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(zoneService.create(request.name(), request.floor(), request.building()));
@@ -50,12 +55,16 @@ public class ZoneController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update zone details",
+               description = "Modifies the name, floor, or building of an existing zone. Admin only.")
     public ZoneDto update(@PathVariable UUID id, @Valid @RequestBody ZoneRequest request) {
         return zoneService.update(id, request.name(), request.floor(), request.building());
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Delete a zone",
+               description = "Permanently removes a zone. Ensure no devices or access rules reference this zone before deletion. Admin only.")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         zoneService.delete(id);
         return ResponseEntity.noContent().build();

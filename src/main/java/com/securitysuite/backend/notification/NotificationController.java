@@ -25,6 +25,8 @@ public class NotificationController {
     private final UserService userService;
 
     @GetMapping
+    @Operation(summary = "List my notifications",
+               description = "Retrieves all notifications for the authenticated user sorted with unread notifications first. Includes alerts, incidents, emergencies, and system messages.")
     public List<NotificationSummary> list(@AuthenticationPrincipal UserDetails principal) {
         return notificationRepository.findByUserPhoneNumberOrderByUnreadFirst(principal.getUsername()).stream()
                 .map(NotificationSummary::from)
@@ -32,7 +34,8 @@ public class NotificationController {
     }
 
     @PatchMapping("/{id}/read")
-    @Operation(summary = "Mark one notification as read")
+    @Operation(summary = "Mark one notification as read",
+               description = "Marks a specific notification as read by recording the read timestamp. The notification must belong to the authenticated user.")
     @Transactional
     public ResponseEntity<Void> markRead(@PathVariable UUID id, @AuthenticationPrincipal UserDetails principal) {
         Notification notification = ownedNotification(id, principal.getUsername());
@@ -41,6 +44,8 @@ public class NotificationController {
     }
 
     @PatchMapping("/read-all")
+    @Operation(summary = "Mark all notifications as read",
+               description = "Bulk marks all notifications for the authenticated user as read. Used for clearing notification queues.")
     @Transactional
     public ResponseEntity<Void> readAll(@AuthenticationPrincipal UserDetails principal) {
         User user = userService.getByPhoneNumber(principal.getUsername());
@@ -49,7 +54,8 @@ public class NotificationController {
     }
 
     @GetMapping("/unread-count")
-    @Operation(summary = "Get count of unread notifications for badge display")
+    @Operation(summary = "Get count of unread notifications for badge display",
+               description = "Returns the number of unread notifications for the authenticated user. Used to display notification badge counts in the UI.")
     public ResponseEntity<UnreadCountResponse> unreadCount(@AuthenticationPrincipal UserDetails principal) {
         long count = notificationRepository.countUnreadByPhoneNumber(principal.getUsername());
         return ResponseEntity.ok(new UnreadCountResponse(count));
