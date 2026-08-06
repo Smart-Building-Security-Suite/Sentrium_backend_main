@@ -64,11 +64,21 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
             return existing;
         });
 
+        long remaining = Math.max(0, maxRequests - bucket[0]);
+        long resetTime = bucket[1] + windowMs;
+        long retryAfterSeconds = Math.max(0, (resetTime - now) / 1000);
+
+        // Add rate limit headers to all responses
+        response.setHeader("X-RateLimit-Limit", String.valueOf(maxRequests));
+        response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
+        response.setHeader("X-RateLimit-Reset", String.valueOf(resetTime / 1000)); // Unix timestamp
+
         if (bucket[0] > maxRequests) {
             log.warn("Rate limit exceeded for IP {} on {}", ip, request.getRequestURI());
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write("{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Too many authentication attempts. Please try again later.\"}");
+            response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
+            response.getWriter().write("{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Too many authentication attempts. Please try again later.\",\"retryAfterSeconds\":" + retryAfterSeconds + "}");
             return;
         }
 

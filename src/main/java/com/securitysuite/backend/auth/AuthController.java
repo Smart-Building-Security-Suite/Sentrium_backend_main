@@ -79,6 +79,19 @@ public class AuthController {
         return UserSummary.from(user);
     }
 
+    @PatchMapping("/me")
+    @Operation(summary = "Update current user's profile (name only)")
+    public UserSummary updateMe(@Valid @RequestBody UpdateProfileRequest request,
+                                @AuthenticationPrincipal UserDetails principal) {
+        User user = userRepository.findByPhoneNumber(principal.getUsername())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        if (request.name() != null && !request.name().isBlank()) {
+            user.setName(request.name());
+            userRepository.save(user);
+        }
+        return UserSummary.from(user);
+    }
+
     // ── OTP Signup Flow ───────────────────────────────────────────────────────
 
     @PostMapping("/signup/otp/request")
@@ -102,6 +115,29 @@ public class AuthController {
             HttpServletResponse response) {
         AuthResponse authResponse = authService.completeSignup(request.signupToken(), request.name(), request.password(), response);
         return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
+    }
+
+    // ── Password Reset Flow ───────────────────────────────────────────────────
+
+    @PostMapping("/password/reset/request")
+    @Operation(summary = "Request an OTP to reset password")
+    public ResponseEntity<OtpRequestResponse> requestPasswordReset(@Valid @RequestBody OtpRequestDto request) {
+        OtpRequestResponse result = authService.requestPasswordResetOtp(request.phoneNumber());
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/password/reset/verify")
+    @Operation(summary = "Verify the OTP and receive a password reset token")
+    public ResponseEntity<OtpVerifyResponse> verifyPasswordResetOtp(@Valid @RequestBody OtpVerifyDto request) {
+        OtpVerifyResponse result = authService.verifyPasswordResetOtp(request.phoneNumber(), request.otp());
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/password/reset/complete")
+    @Operation(summary = "Complete password reset using the resetToken")
+    public ResponseEntity<Void> completePasswordReset(@Valid @RequestBody PasswordResetCompleteRequest request) {
+        authService.completePasswordReset(request.resetToken(), request.newPassword());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

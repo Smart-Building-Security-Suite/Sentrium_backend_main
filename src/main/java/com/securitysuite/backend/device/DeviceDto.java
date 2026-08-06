@@ -12,7 +12,8 @@ public record DeviceDto(
         DeviceType type,
         DeviceStatus status,
         UUID zoneId,
-        String zoneName
+        String zoneName,
+        Boolean active
 ) {
     public static DeviceDto from(Device device) {
         return new DeviceDto(
@@ -21,7 +22,8 @@ public record DeviceDto(
                 device.getType(),
                 device.getStatus(),
                 device.getZone().getId(),
-                device.getZone().getName()
+                device.getZone().getName(),
+                device.getActive()
         );
     }
 }

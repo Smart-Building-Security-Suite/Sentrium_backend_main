@@ -71,5 +71,15 @@ public class AlertController {
         return AlertDto.from(alertService.resolve(id));
     }
 
+    @GetMapping("/recent")
+    @Operation(summary = "Get recent open alerts for dashboard")
+    @PreAuthorize("isAuthenticated()")
+    public List<AlertDto> getRecent(@RequestParam(defaultValue = "10") int limit) {
+        return alertService.getRecentOpenAlerts(Math.min(limit, 50))
+                .stream()
+                .map(AlertDto::from)
+                .toList();
+    }
+
     public record AlertRequest(@NotNull UUID zoneId, UUID deviceId, @NotNull AlertSeverity severity, @NotBlank String message) {}
 }

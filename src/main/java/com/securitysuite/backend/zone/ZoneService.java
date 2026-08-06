@@ -19,6 +19,10 @@ public class ZoneService {
         return zoneRepository.findAll().stream().map(ZoneDto::from).toList();
     }
 
+    public org.springframework.data.domain.Page<ZoneDto> listAllPaginated(org.springframework.data.domain.Pageable pageable) {
+        return zoneRepository.findAll(pageable).map(ZoneDto::from);
+    }
+
     public Zone getById(UUID id) {
         return zoneRepository.findById(id).orElseThrow(() -> new NotFoundException("Zone not found"));
     }

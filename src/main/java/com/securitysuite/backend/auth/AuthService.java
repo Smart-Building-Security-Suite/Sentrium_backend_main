@@ -183,6 +183,124 @@ public class AuthService {
         return OtpVerifyResponse.of(phoneNumber, signupToken);
     }
 
+    // ── Password Reset: Request ───────────────────────────────────────────────
+
+    @Transactional
+    public OtpRequestResponse requestPasswordResetOtp(String phoneNumber) {
+        // 1. Guard: phone must have an existing account
+        if (!userRepository.existsByPhoneNumber(phoneNumber)) {
+            throw new NotFoundException("No account found with this phone number");
+        }
+
+        Instant now = Instant.now();
+
+        // 2. Rate-limit: reject if a valid OTP was created within the last 30 seconds
+        otpRepository.findTopByPhoneNumberOrderByCreatedAtDesc(phoneNumber)
+                .filter(rec -> rec.getCreatedAt().isAfter(now.minusSeconds(30)))
+                .ifPresent(rec -> { throw new OtpRateLimitException(); });
+
+        // 3. Generate 6-digit OTP
+        String otp = String.format("%06d", (int) (Math.random() * 1_000_000));
+        String otpHash = passwordEncoder.encode(otp);
+
+        // 4. Persist
+        OtpRecord record = OtpRecord.builder()
+                .phoneNumber(phoneNumber)
+                .otpHash(otpHash)
+                .createdAt(now)
+                .expiresAt(now.plusSeconds(300))
+                .verified(false)
+                .attempts(0)
+                .build();
+        otpRepository.save(record);
+
+        // 5. Stub: log OTP (replace with SMS gateway integration)
+        log.info("Password reset OTP for {}: {}", phoneNumber, otp);
+
+        return OtpRequestResponse.of(phoneNumber, now);
+    }
+
+    // ── Password Reset: Verify ────────────────────────────────────────────────
+
+    @Transactional
+    public OtpVerifyResponse verifyPasswordResetOtp(String phoneNumber, String otp) {
+        // Verify user exists
+        if (!userRepository.existsByPhoneNumber(phoneNumber)) {
+            throw new NotFoundException("No account found with this phone number");
+        }
+
+        Instant now = Instant.now();
+
+        OtpRecord record = otpRepository.findTopByPhoneNumberOrderByCreatedAtDesc(phoneNumber)
+                .orElseThrow(() -> new OtpInvalidException("OTP expired or not found"));
+
+        // Check expiry
+        if (record.getExpiresAt().isBefore(now)) {
+            otpRepository.delete(record);
+            throw new OtpInvalidException("OTP expired or not found");
+        }
+
+        // Increment attempt count first
+        record.setAttempts(record.getAttempts() + 1);
+
+        if (record.getAttempts() > 5) {
+            otpRepository.delete(record);
+            throw new OtpInvalidException("Too many failed attempts. Please request a new OTP.");
+        }
+
+        // Verify the code
+        if (!passwordEncoder.matches(otp, record.getOtpHash())) {
+            otpRepository.save(record); // persist incremented attempts
+            int remaining = 5 - record.getAttempts();
+            throw new OtpInvalidException("Invalid OTP. " + remaining + " attempt(s) remaining.");
+        }
+
+        // Success — mark verified and clean up
+        record.setVerified(true);
+        otpRepository.delete(record);
+
+        // Issue a password reset token valid for 10 minutes
+        String resetToken = UUID.randomUUID().toString();
+        PendingSignup pending = PendingSignup.builder()
+                .phoneNumber(phoneNumber)
+                .signupToken(resetToken) // reusing same field for reset token
+                .createdAt(now)
+                .expiresAt(now.plusSeconds(600))
+                .used(false)
+                .build();
+        // Remove any stale pending resets for this number first
+        pendingSignupRepository.deleteByPhoneNumber(phoneNumber);
+        pendingSignupRepository.save(pending);
+
+        return OtpVerifyResponse.of(phoneNumber, resetToken);
+    }
+
+    // ── Password Reset: Complete ──────────────────────────────────────────────
+
+    @Transactional
+    public void completePasswordReset(String resetToken, String newPassword) {
+        Instant now = Instant.now();
+
+        PendingSignup pending = pendingSignupRepository.findBySignupToken(resetToken)
+                .orElseThrow(() -> new BadCredentialsException("Invalid or expired reset token"));
+
+        if (pending.isUsed() || pending.getExpiresAt().isBefore(now)) {
+            throw new BadCredentialsException("Invalid or expired reset token");
+        }
+
+        // Mark token as consumed
+        pending.setUsed(true);
+        pendingSignupRepository.save(pending);
+
+        // Update user password
+        User user = userRepository.findByPhoneNumber(pending.getPhoneNumber())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        log.info("Password reset completed for user: {}", pending.getPhoneNumber());
+    }
+
     // ── Signup: Complete ──────────────────────────────────────────────────────
 
     @Transactional

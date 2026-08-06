@@ -35,4 +35,10 @@ public class Device {
 
     @Column
     private Instant lastHeartbeatAt;
+
+    @Column(nullable = false)
+    private Boolean active = true;
+
+    @Column
+    private Instant deactivatedAt;
 }

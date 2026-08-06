@@ -48,9 +48,18 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/unread-count")
+    @Operation(summary = "Get count of unread notifications for badge display")
+    public ResponseEntity<UnreadCountResponse> unreadCount(@AuthenticationPrincipal UserDetails principal) {
+        long count = notificationRepository.countUnreadByPhoneNumber(principal.getUsername());
+        return ResponseEntity.ok(new UnreadCountResponse(count));
+    }
+
     private Notification ownedNotification(UUID id, String phoneNumber) {
         Notification notification = notificationRepository.findById(id).orElseThrow(() -> new NotFoundException("Notification not found"));
         if (!notification.getUser().getPhoneNumber().equals(phoneNumber)) throw new NotFoundException("Notification not found");
         return notification;
     }
+
+    public record UnreadCountResponse(long unreadCount) {}
 }

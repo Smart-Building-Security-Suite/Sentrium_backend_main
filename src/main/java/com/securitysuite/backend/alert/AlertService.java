@@ -4,15 +4,19 @@ import com.securitysuite.backend.common.NotFoundException;
 import com.securitysuite.backend.device.Device;
 import com.securitysuite.backend.device.DeviceRepository;
 import com.securitysuite.backend.notification.AlertCreatedEvent;
+import com.securitysuite.backend.pushnotification.PushNotificationService;
+import com.securitysuite.backend.websocket.WebSocketAlertPublisher;
 import com.securitysuite.backend.zone.Zone;
 import com.securitysuite.backend.zone.ZoneRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -22,6 +26,10 @@ public class AlertService {
     private final ZoneRepository zoneRepository;
     private final DeviceRepository deviceRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final WebSocketAlertPublisher webSocketPublisher;
+
+    @Autowired(required = false)
+    private PushNotificationService pushNotificationService;
 
     public List<Alert> list(AlertStatus status, AlertSeverity severity) {
         if (status != null && severity != null) return alertRepository.findByStatusAndSeverity(status, severity);
@@ -42,6 +50,29 @@ public class AlertService {
         alert.setStatus(AlertStatus.OPEN);
         alert = alertRepository.save(alert);
         eventPublisher.publishEvent(new AlertCreatedEvent(alert));
+
+        // 🔔 PUSH NOTIFICATION: Alert Created
+        if (pushNotificationService != null) {
+            String emoji = switch (alert.getSeverity()) {
+                case CRITICAL -> "🚨";
+                case HIGH -> "⚠️";
+                case MEDIUM -> "⚡";
+                case LOW -> "ℹ️";
+            };
+
+            pushNotificationService.sendToSecurityPersonnel(
+                emoji + " New Alert: " + alert.getSeverity(),
+                alert.getMessage() + " in " + zone.getName(),
+                Map.of(
+                    "alertId", alert.getId().toString(),
+                    "severity", alert.getSeverity().name(),
+                    "zoneId", zone.getId().toString(),
+                    "zoneName", zone.getName(),
+                    "type", "ALERT_CREATED"
+                )
+            );
+        }
+
         return alert;
     }
 
@@ -58,6 +89,8 @@ public class AlertService {
             org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
             String username = auth != null ? auth.getName() : "usr_xx";
             alert.setAcknowledgedBy(username);
+            // Broadcast update via WebSocket
+            webSocketPublisher.broadcastAlertUpdate(alert, "ALERT_ACKNOWLEDGED");
         }
         return alert;
     }
@@ -68,8 +101,15 @@ public class AlertService {
         if (alert.getStatus() != AlertStatus.RESOLVED) {
             alert.setStatus(AlertStatus.RESOLVED);
             alert.setResolvedAt(Instant.now());
+            // Broadcast update via WebSocket
+            webSocketPublisher.broadcastAlertUpdate(alert, "ALERT_RESOLVED");
         }
         return alert;
+    }
+
+    public List<Alert> getRecentOpenAlerts(int limit) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit);
+        return alertRepository.findRecentOpenAlerts(pageable);
     }
 
     public record CreateAlertRequest(UUID zoneId, UUID deviceId, AlertSeverity severity, String message) {}

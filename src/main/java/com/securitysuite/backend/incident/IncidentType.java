@@ -1,0 +1,20 @@
+package com.securitysuite.backend.incident;
+
+public enum IncidentType {
+    THEFT,
+    VANDALISM,
+    TRESPASSING,
+    ASSAULT,
+    UNAUTHORIZED_ACCESS,
+    SUSPICIOUS_ACTIVITY,
+    EQUIPMENT_DAMAGE,
+    FIRE,
+    MEDICAL_EMERGENCY,
+    SAFETY_HAZARD,
+    POLICY_VIOLATION,
+    CYBER_SECURITY,
+    WORKPLACE_VIOLENCE,
+    HARASSMENT,
+    ACCIDENT,
+    OTHER
+}

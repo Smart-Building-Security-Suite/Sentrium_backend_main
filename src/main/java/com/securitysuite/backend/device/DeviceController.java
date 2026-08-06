@@ -53,7 +53,15 @@ public class DeviceController {
         return ResponseEntity.ok(deviceService.updateDevice(id, request));
     }
 
+    @PatchMapping("/{id}/deactivate")
+    @Operation(summary = "Soft-delete device (preserves audit history)")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<DeviceDto> deactivateDevice(@PathVariable String id) {
+        return ResponseEntity.ok(deviceService.deactivateDevice(id));
+    }
+
     @DeleteMapping("/{id}")
+    @Operation(summary = "Hard delete device (use with caution)")
     @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<Void> deleteDevice(@PathVariable String id) {
         deviceService.deleteDevice(id);
@@ -64,6 +72,15 @@ public class DeviceController {
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<Map<String, Object>> unlock(@PathVariable String id) {
         return ResponseEntity.ok(deviceService.unlockDevice(id));
+    }
+
+    @GetMapping("/{id}/history")
+    @Operation(summary = "Get device status history timeline")
+    @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
+    public ResponseEntity<List<DeviceStatusHistoryDto>> getHistory(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(deviceService.getDeviceHistory(UUID.fromString(id), Math.min(limit, 100)));
     }
 
     public record DeviceRequest(@NotBlank String name, @NotNull DeviceType type, @NotNull UUID zoneId) {}

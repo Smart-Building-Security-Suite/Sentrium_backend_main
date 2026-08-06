@@ -22,4 +22,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Modifying
     @Query("UPDATE Notification n SET n.readAt = :now WHERE n.user.id = :userId AND n.readAt IS NULL")
     void markAllReadByUserId(@Param("userId") UUID userId, @Param("now") Instant now);
+
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.user.phoneNumber = :phoneNumber AND n.readAt IS NULL")
+    long countUnreadByPhoneNumber(@Param("phoneNumber") String phoneNumber);
 }
