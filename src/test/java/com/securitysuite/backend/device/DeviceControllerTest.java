@@ -61,7 +61,7 @@ class DeviceControllerTest {
         UUID zoneId = UUID.randomUUID();
         DeviceController.DeviceRequest req = new DeviceController.DeviceRequest("Main Gate Cam", DeviceType.CAMERA_SIM, zoneId);
 
-        DeviceDto dto = new DeviceDto(UUID.randomUUID(), "Main Gate Cam", DeviceType.CAMERA_SIM, DeviceStatus.IDLE, zoneId, "Zone A", true);
+        DeviceDto dto = new DeviceDto(UUID.randomUUID(), "Main Gate Cam", DeviceType.CAMERA_SIM, DeviceStatus.IDLE, zoneId, "Zone A", true, null, null, "HTTP", "DISCONNECTED", null, null, null, null, null);
         given(deviceService.create(any(), any(), any())).willReturn(dto);
 
         mockMvc.perform(post("/devices").with(csrf())
