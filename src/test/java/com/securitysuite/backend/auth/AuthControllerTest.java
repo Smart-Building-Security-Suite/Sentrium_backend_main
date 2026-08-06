@@ -1,10 +1,7 @@
 package com.securitysuite.backend.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.securitysuite.backend.auth.dto.AuthResponse;
-import com.securitysuite.backend.auth.dto.LoginRequest;
-import com.securitysuite.backend.auth.dto.RegisterRequest;
-import com.securitysuite.backend.auth.dto.UserSummary;
+import com.securitysuite.backend.auth.dto.*;
 import com.securitysuite.backend.security.CustomUserDetailsService;
 import com.securitysuite.backend.security.JwtService;
 import com.securitysuite.backend.user.Role;
@@ -18,6 +15,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -50,29 +48,43 @@ class AuthControllerTest {
     private RevokedTokenRepository revokedTokenRepository;
 
     @Test
-    @DisplayName("POST /auth/register - Success")
-    void registerSuccess() throws Exception {
-        RegisterRequest request = new RegisterRequest("Test User", "test@security.com", "Secret123!");
-        UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "test@security.com", Role.SECURITY_OFFICER);
+    @DisplayName("POST /auth/signup/otp/request - Success")
+    void requestOtpSuccess() throws Exception {
+        String phoneNumber = "+1234567890";
+        OtpRequestResponse response = OtpRequestResponse.of(phoneNumber, Instant.now());
+
+        given(authService.requestOtp(eq(phoneNumber))).willReturn(response);
+
+        mockMvc.perform(post("/auth/signup/otp/request")
+                        .param("phoneNumber", phoneNumber))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phoneNumber").value(phoneNumber));
+    }
+
+    @Test
+    @DisplayName("POST /auth/signup/complete - Success")
+    void completeSignupSuccess() throws Exception {
+        RegisterRequest request = new RegisterRequest("signup-token-123", "Test User", "Secret123!");
+        UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "+1234567890", Role.SECURITY_OFFICER);
         AuthResponse response = new AuthResponse("mock-access-token", 900L, summary);
 
-        given(authService.register(any(RegisterRequest.class))).willReturn(response);
+        given(authService.completeSignup(eq("signup-token-123"), eq("Test User"), eq("Secret123!"), any())).willReturn(response);
 
-        mockMvc.perform(post("/auth/register")
+        mockMvc.perform(post("/auth/signup/complete")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken").value("mock-access-token"))
                 .andExpect(jsonPath("$.expiresIn").value(900))
-                .andExpect(jsonPath("$.user.email").value("test@security.com"))
+                .andExpect(jsonPath("$.user.fullName").value("Test User"))
                 .andExpect(jsonPath("$.user.role").value("SECURITY_OFFICER"));
     }
 
     @Test
     @DisplayName("POST /auth/login - Success")
     void loginSuccess() throws Exception {
-        LoginRequest request = new LoginRequest("test@security.com", "Secret123!");
-        UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "test@security.com", Role.SECURITY_OFFICER);
+        LoginRequest request = new LoginRequest("+1234567890", "Secret123!");
+        UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "+1234567890", Role.SECURITY_OFFICER);
         AuthResponse response = new AuthResponse("mock-access-token", 900L, summary);
 
         given(authService.login(any(LoginRequest.class), any())).willReturn(response);
@@ -88,7 +100,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /auth/refresh - With Valid Refresh Token Cookie")
     void refreshSuccess() throws Exception {
-        UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "test@security.com", Role.SECURITY_OFFICER);
+        UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "+1234567890", Role.SECURITY_OFFICER);
         AuthResponse response = new AuthResponse("new-access-token", 900L, summary);
 
         given(authService.refresh(eq("valid-refresh-cookie"), any())).willReturn(response);

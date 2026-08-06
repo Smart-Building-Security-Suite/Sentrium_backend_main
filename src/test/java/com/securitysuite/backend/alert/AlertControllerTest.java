@@ -62,7 +62,7 @@ class AlertControllerTest {
         return new AlertDto(
                 UUID.randomUUID(), zoneId, "Zone A", null, null,
                 AlertSeverity.HIGH, AlertStatus.OPEN, "Motion detected",
-                Instant.now(), null);
+                Instant.now(), null, null, null);
     }
 
     // ── Authorization tests (filters enabled — no addFilters=false) ──────────
