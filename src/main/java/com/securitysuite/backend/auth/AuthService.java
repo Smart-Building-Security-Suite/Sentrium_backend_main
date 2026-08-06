@@ -127,10 +127,10 @@ public class AuthService {
                 .build();
         otpRepository.save(record);
 
-        // 5. Stub: log OTP (replace with SMS gateway integration)
+        // 5. Stub: log OTP and return in response until SMS service is wired up
         log.info("OTP for {}: {}", phoneNumber, otp);
 
-        return OtpRequestResponse.of(phoneNumber, now);
+        return OtpRequestResponse.of(phoneNumber, now, otp);
     }
 
     // ── OTP: Verify ───────────────────────────────────────────────────────────
@@ -214,10 +214,10 @@ public class AuthService {
                 .build();
         otpRepository.save(record);
 
-        // 5. Stub: log OTP (replace with SMS gateway integration)
+        // 5. Stub: log OTP and return in response until SMS service is wired up
         log.info("Password reset OTP for {}: {}", phoneNumber, otp);
 
-        return OtpRequestResponse.of(phoneNumber, now);
+        return OtpRequestResponse.of(phoneNumber, now, otp);
     }
 
     // ── Password Reset: Verify ────────────────────────────────────────────────

@@ -11,11 +11,11 @@ services:
       - key: DATABASE_USERNAME
         value: neondb_owner
       - key: DATABASE_PASSWORD
-        sync: false  # Mark as secret - set this in Render dashboard
+        value: npg_l5wxpIHPYBF9
 
-      # JWT Configuration
+      # JWT Configuration (IMPORTANT: Set JWT_SECRET in dashboard after deployment!)
       - key: JWT_SECRET
-        sync: false  # Mark as secret - set this in Render dashboard
+        value: CHANGE_ME_AFTER_DEPLOY  # MUST be replaced in Render dashboard!
       - key: JWT_ACCESS_TOKEN_EXPIRATION_MS
         value: 900000
       - key: JWT_REFRESH_TOKEN_EXPIRATION_MS
@@ -31,9 +31,10 @@ services:
       - key: PORT
         value: 8080
 
-      # CORS Configuration - Update with your frontend URLs
+      # CORS Configuration - For React Native/Expo
+      # Native apps don't need CORS, but include your Expo web URL if using it
       - key: APP_CORS_ALLOWED_ORIGINS
-        value: https://your-frontend.vercel.app,https://your-frontend.render.com
+        value: http://localhost:8081,exp://localhost:8081,https://your-expo-web-url.vercel.app
 
       # Mail Configuration (optional - configure if using email)
       - key: MAIL_HOST
