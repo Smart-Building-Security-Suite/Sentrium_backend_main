@@ -9,17 +9,23 @@ RUN mvn clean package -DskipTests
 # Stage 2: Create the runtime container
 FROM eclipse-temurin:21-jre-jammy
 
-# Hugging Face runs containers with UID 1000
-RUN useradd -m -u 1000 user
-USER user
-ENV HOME=/home/user
-WORKDIR $HOME/app
+# Create non-root user
+RUN useradd -m -u 1000 appuser
+USER appuser
+WORKDIR /home/appuser/app
 
 # Copy the built jar from the build stage
-COPY --chown=user --from=build /app/target/*.jar app.jar
+COPY --chown=appuser --from=build /app/target/*.jar app.jar
 
-# Spring Boot will read the PORT env var provided by Hugging Face (default is 7860)
-EXPOSE 7860
+# Create reports directory
+RUN mkdir -p /tmp/reports
 
-# Run the jar
-CMD ["java", "-jar", "app.jar"]
+# Render provides PORT environment variable
+EXPOSE 8080
+
+# Run the jar with production settings
+CMD ["java", \
+     "-XX:MaxRAMPercentage=75.0", \
+     "-XX:+UseContainerSupport", \
+     "-Djava.security.egd=file:/dev/./urandom", \
+     "-jar", "app.jar"]
