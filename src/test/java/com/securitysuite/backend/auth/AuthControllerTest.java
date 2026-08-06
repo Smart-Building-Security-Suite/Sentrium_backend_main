@@ -51,7 +51,7 @@ class AuthControllerTest {
     @DisplayName("POST /auth/signup/otp/request - Success")
     void requestOtpSuccess() throws Exception {
         String phoneNumber = "+1234567890";
-        OtpRequestResponse response = OtpRequestResponse.of(phoneNumber, Instant.now());
+        OtpRequestResponse response = OtpRequestResponse.of(phoneNumber, Instant.now(), "123456");
 
         given(authService.requestOtp(eq(phoneNumber))).willReturn(response);
 
