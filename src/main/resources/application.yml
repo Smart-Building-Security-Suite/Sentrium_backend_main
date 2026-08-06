@@ -6,10 +6,10 @@ spring:
     username: ${DATABASE_USERNAME:${DB_USERNAME:postgres}}
     password: ${DATABASE_PASSWORD:${DB_PASSWORD:postgres}}
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
     show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    open-in-view: false
     properties:
       hibernate:
         format_sql: false

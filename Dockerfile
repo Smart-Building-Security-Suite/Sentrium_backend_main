@@ -21,11 +21,14 @@ COPY --chown=appuser --from=build /app/target/*.jar app.jar
 RUN mkdir -p /tmp/reports
 
 # Render provides PORT environment variable
-EXPOSE 8080
+EXPOSE 10000
 
 # Run the jar with production settings
 CMD ["java", \
      "-XX:MaxRAMPercentage=75.0", \
      "-XX:+UseContainerSupport", \
+     "-Xss256k", \
+     "-XX:TieredStopAtLevel=1", \
      "-Djava.security.egd=file:/dev/./urandom", \
+     "-Dspring.jpa.open-in-view=false", \
      "-jar", "app.jar"]
