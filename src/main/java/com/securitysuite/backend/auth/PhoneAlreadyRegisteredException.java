@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @ResponseStatus(HttpStatus.CONFLICT)
 public class PhoneAlreadyRegisteredException extends RuntimeException {
     public PhoneAlreadyRegisteredException(String phoneNumber) {
-        super("Phone number already registered: " + phoneNumber);
+        // Do NOT include phoneNumber in message - prevents user enumeration
+        super("This phone number is already registered. Please login instead.");
     }
 }

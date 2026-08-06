@@ -38,12 +38,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({IllegalArgumentException.class, JwtException.class})
     public ResponseEntity<ApiError> handleBadRequest(RuntimeException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+        // SECURITY: Log full message but return sanitized version to prevent information disclosure
+        log.warn("Bad request on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, "Invalid request", request.getRequestURI());
     }
 
     @ExceptionHandler({EntityNotFoundException.class, NotFoundException.class})
     public ResponseEntity<ApiError> handleNotFound(Exception ex, HttpServletRequest request) {
-        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
+        // SECURITY: Log full message but return generic error to prevent enumeration
+        log.info("Not found on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.NOT_FOUND, "Resource not found", request.getRequestURI());
     }
 
     @ExceptionHandler(AccessDeniedException.class)

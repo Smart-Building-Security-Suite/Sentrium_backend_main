@@ -159,8 +159,8 @@ public class AuthService {
         // Verify the code
         if (!passwordEncoder.matches(otp, record.getOtpHash())) {
             otpRepository.save(record); // persist incremented attempts
-            int remaining = 5 - record.getAttempts();
-            throw new OtpInvalidException("Invalid OTP. " + remaining + " attempt(s) remaining.");
+            // SECURITY: Don't reveal remaining attempts to prevent enumeration attacks
+            throw new OtpInvalidException("Invalid OTP code");
         }
 
         // Success — mark verified and clean up
@@ -188,8 +188,11 @@ public class AuthService {
     @Transactional
     public OtpRequestResponse requestPasswordResetOtp(String phoneNumber) {
         // 1. Guard: phone must have an existing account
+        // SECURITY: Return success even if account doesn't exist to prevent user enumeration
         if (!userRepository.existsByPhoneNumber(phoneNumber)) {
-            throw new NotFoundException("No account found with this phone number");
+            // Return fake success response with no OTP actually sent
+            log.info("Password reset requested for non-existent phone: {}", phoneNumber);
+            return OtpRequestResponse.of(phoneNumber, Instant.now(), null);
         }
 
         Instant now = Instant.now();
@@ -224,9 +227,9 @@ public class AuthService {
 
     @Transactional
     public OtpVerifyResponse verifyPasswordResetOtp(String phoneNumber, String otp) {
-        // Verify user exists
+        // SECURITY: Use generic error to prevent user enumeration
         if (!userRepository.existsByPhoneNumber(phoneNumber)) {
-            throw new NotFoundException("No account found with this phone number");
+            throw new OtpInvalidException("Invalid or expired OTP");
         }
 
         Instant now = Instant.now();
@@ -251,8 +254,8 @@ public class AuthService {
         // Verify the code
         if (!passwordEncoder.matches(otp, record.getOtpHash())) {
             otpRepository.save(record); // persist incremented attempts
-            int remaining = 5 - record.getAttempts();
-            throw new OtpInvalidException("Invalid OTP. " + remaining + " attempt(s) remaining.");
+            // SECURITY: Don't reveal remaining attempts to prevent enumeration attacks
+            throw new OtpInvalidException("Invalid OTP code");
         }
 
         // Success — mark verified and clean up
