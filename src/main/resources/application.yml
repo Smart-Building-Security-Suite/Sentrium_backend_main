@@ -45,6 +45,10 @@ app:
     auth:
       max-requests: ${AUTH_RATE_LIMIT_MAX_REQUESTS:20}
       window-seconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
+  video:
+    storage-path: ${VIDEO_STORAGE_PATH:${user.home}/sentrium/videos}
+    retention-days: ${VIDEO_RETENTION_DAYS:30}
+    ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
 management:
   endpoints:
     web:

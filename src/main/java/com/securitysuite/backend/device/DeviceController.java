@@ -97,6 +97,45 @@ public class DeviceController {
         return ResponseEntity.ok(deviceService.getDeviceHistory(UUID.fromString(id), Math.min(limit, 100)));
     }
 
+    @PostMapping("/{id}/configure")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @Operation(summary = "Configure device connectivity",
+               description = "Set device endpoint URL, API key, stream URL for cameras. Required for physical device control. Admin only.")
+    public ResponseEntity<DeviceDto> configureDevice(
+            @PathVariable String id,
+            @Valid @RequestBody DeviceConfigRequest request) {
+        return ResponseEntity.ok(deviceService.configureDevice(id, request));
+    }
+
+    @GetMapping("/{id}/commands")
+    @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
+    @Operation(summary = "Get device command history",
+               description = "Retrieves the history of commands sent to this device (unlock, lock, etc.) with execution status. Admin and Security Officer access.")
+    public ResponseEntity<List<HttpDeviceCommandService.DeviceCommandDto>> getCommands(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(deviceService.getCommandHistory(UUID.fromString(id), limit));
+    }
+
+    @PostMapping("/{id}/lock")
+    @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
+    @Operation(summary = "Remotely lock an access control device",
+               description = "Sends a lock command to an access control device. Admin and Security Officer access.")
+    public ResponseEntity<Map<String, Object>> lock(@PathVariable String id) {
+        return ResponseEntity.ok(deviceService.lockDevice(id));
+    }
+
     public record DeviceRequest(@NotBlank String name, @NotNull DeviceType type, @NotNull UUID zoneId) {}
     public record HeartbeatRequest(@NotNull DeviceStatus status) {}
+    public record DeviceConfigRequest(
+            String endpointUrl,
+            String apiKey,
+            String connectionProtocol,
+            String streamUrl,
+            String streamType,
+            String streamUsername,
+            String streamPassword,
+            String streamResolution,
+            Integer streamFps
+    ) {}
 }

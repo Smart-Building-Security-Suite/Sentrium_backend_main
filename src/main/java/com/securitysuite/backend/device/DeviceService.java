@@ -24,6 +24,7 @@ public class DeviceService {
     private final DeviceRepository deviceRepository;
     private final ZoneService zoneService;
     private final DeviceStatusHistoryRepository historyRepository;
+    private final HttpDeviceCommandService commandService;
 
     public List<DeviceDto> listAll(UUID zoneId) {
         List<Device> devices = zoneId == null
@@ -99,7 +100,9 @@ public class DeviceService {
 
     @Transactional
     public Map<String, Object> unlockDevice(String id) {
-        Device device = getById(UUID.fromString(id));
+        UUID deviceId = UUID.fromString(id);
+        Device device = getById(deviceId);
+
         if (device.getType() != DeviceType.ACCESS_POINT) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device is not an ACCESS_POINT");
         }
@@ -109,13 +112,30 @@ public class DeviceService {
             triggeredBy = SecurityContextHolder.getContext().getAuthentication().getName();
         }
 
-        log.info("Device unlocked: id={}, triggeredBy={}", id, triggeredBy);
-        return Map.of(
-            "id", id,
-            "action", "UNLOCK",
-            "triggeredBy", triggeredBy,
-            "timestamp", Instant.now().toString()
-        );
+        // If device has endpoint configured, send actual command
+        if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
+            HttpDeviceCommandService.DeviceCommandResponse response = commandService.unlockDevice(deviceId, 5);
+
+            return Map.of(
+                "id", id,
+                "action", "UNLOCK",
+                "triggeredBy", triggeredBy,
+                "timestamp", Instant.now().toString(),
+                "success", response.success(),
+                "message", response.message(),
+                "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
+            );
+        } else {
+            // Legacy behavior - just log (no actual device control)
+            log.info("Device unlocked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
+            return Map.of(
+                "id", id,
+                "action", "UNLOCK",
+                "triggeredBy", triggeredBy,
+                "timestamp", Instant.now().toString(),
+                "warning", "Device endpoint not configured. This is a metadata-only operation."
+            );
+        }
     }
 
     public List<DeviceStatusHistoryDto> getDeviceHistory(UUID deviceId, int limit) {
@@ -134,5 +154,86 @@ public class DeviceService {
         deviceRepository.save(device);
         log.info("Device soft-deleted: id={}", id);
         return DeviceDto.from(device);
+    }
+
+    @Transactional
+    public DeviceDto configureDevice(String id, DeviceController.DeviceConfigRequest request) {
+        Device device = getById(UUID.fromString(id));
+
+        if (request.endpointUrl() != null) {
+            device.setEndpointUrl(request.endpointUrl());
+        }
+        if (request.apiKey() != null) {
+            // TODO: Encrypt the API key before storing
+            device.setApiKeyEncrypted(request.apiKey());
+        }
+        if (request.connectionProtocol() != null) {
+            device.setConnectionProtocol(request.connectionProtocol());
+        }
+        if (request.streamUrl() != null) {
+            device.setStreamUrl(request.streamUrl());
+        }
+        if (request.streamType() != null) {
+            device.setStreamType(request.streamType());
+        }
+        if (request.streamUsername() != null) {
+            device.setStreamUsername(request.streamUsername());
+        }
+        if (request.streamPassword() != null) {
+            // TODO: Encrypt the stream password before storing
+            device.setStreamPasswordEncrypted(request.streamPassword());
+        }
+        if (request.streamResolution() != null) {
+            device.setStreamResolution(request.streamResolution());
+        }
+        if (request.streamFps() != null) {
+            device.setStreamFps(request.streamFps());
+        }
+
+        deviceRepository.save(device);
+        log.info("Device configured: id={}", id);
+        return DeviceDto.from(device);
+    }
+
+    @Transactional
+    public Map<String, Object> lockDevice(String id) {
+        UUID deviceId = UUID.fromString(id);
+        Device device = getById(deviceId);
+
+        if (device.getType() != DeviceType.ACCESS_POINT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device is not an ACCESS_POINT");
+        }
+
+        String triggeredBy = "unknown";
+        if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
+            triggeredBy = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+
+        if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
+            HttpDeviceCommandService.DeviceCommandResponse response = commandService.lockDevice(deviceId);
+
+            return Map.of(
+                "id", id,
+                "action", "LOCK",
+                "triggeredBy", triggeredBy,
+                "timestamp", Instant.now().toString(),
+                "success", response.success(),
+                "message", response.message(),
+                "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
+            );
+        } else {
+            log.info("Device locked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
+            return Map.of(
+                "id", id,
+                "action", "LOCK",
+                "triggeredBy", triggeredBy,
+                "timestamp", Instant.now().toString(),
+                "warning", "Device endpoint not configured. This is a metadata-only operation."
+            );
+        }
+    }
+
+    public java.util.List<HttpDeviceCommandService.DeviceCommandDto> getCommandHistory(UUID deviceId, int limit) {
+        return commandService.getCommandHistory(deviceId, limit);
     }
 }

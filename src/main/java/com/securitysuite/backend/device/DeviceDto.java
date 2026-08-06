@@ -1,5 +1,6 @@
 package com.securitysuite.backend.device;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -13,7 +14,20 @@ public record DeviceDto(
         DeviceStatus status,
         UUID zoneId,
         String zoneName,
-        Boolean active
+        Boolean active,
+        Instant lastHeartbeatAt,
+
+        // Connectivity fields
+        String endpointUrl,
+        String connectionProtocol,
+        String connectionStatus,
+        Instant lastCommandAt,
+
+        // Camera stream fields
+        String streamUrl,
+        String streamType,
+        String streamResolution,
+        Integer streamFps
 ) {
     public static DeviceDto from(Device device) {
         return new DeviceDto(
@@ -23,7 +37,20 @@ public record DeviceDto(
                 device.getStatus(),
                 device.getZone().getId(),
                 device.getZone().getName(),
-                device.getActive()
+                device.getActive(),
+                device.getLastHeartbeatAt(),
+
+                // Connectivity
+                device.getEndpointUrl(),
+                device.getConnectionProtocol(),
+                device.getConnectionStatus(),
+                device.getLastCommandAt(),
+
+                // Camera stream
+                device.getStreamUrl(),
+                device.getStreamType(),
+                device.getStreamResolution(),
+                device.getStreamFps()
         );
     }
 }

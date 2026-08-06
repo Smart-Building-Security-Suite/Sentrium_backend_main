@@ -20,6 +20,7 @@ public class SurveillanceService {
 
     private final MotionEventRepository motionEventRepository;
     private final DeviceRepository deviceRepository;
+    private final com.securitysuite.backend.videoclip.VideoClipService videoClipService;
 
     /**
      * Lists motion events with optional filtering by cameraId and/or detectedAt range.
@@ -50,6 +51,7 @@ public class SurveillanceService {
     /**
      * Creates a motion event, optionally resolving the camera name from the device registry.
      * If the device is not found (e.g. unregistered gateway), the cameraId is used as a fallback name.
+     * Optionally triggers video recording if camera has RTSP stream configured.
      */
     public MotionEventDto createMotionEvent(CreateMotionEventRequest request) {
         String cameraName = resolveCameraName(request.cameraId());
@@ -61,7 +63,18 @@ public class SurveillanceService {
                 .confidence(request.confidence())
                 .build();
 
-        return toDto(motionEventRepository.save(event));
+        event = motionEventRepository.save(event);
+
+        // Trigger video recording if camera supports it
+        findDeviceById(request.cameraId()).ifPresent(device -> {
+            if (device.getStreamUrl() != null && !device.getStreamUrl().isBlank()) {
+                // Record 30 second clip on motion detection
+                // Note: event.getId() is Long, but trigger accepts UUID - needs conversion or null
+                videoClipService.recordClip(device.getId(), 30, "MOTION", null);
+            }
+        });
+
+        return toDto(event);
     }
 
     /**

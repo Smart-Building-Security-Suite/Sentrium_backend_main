@@ -41,4 +41,42 @@ public class Device {
 
     @Column
     private Instant deactivatedAt;
+
+    // ── Device Connectivity ──────────────────────────────────────────────────
+    @Column(name = "endpoint_url")
+    private String endpointUrl; // HTTP endpoint for device commands
+
+    @Column(name = "api_key_encrypted")
+    private String apiKeyEncrypted; // Encrypted API key for device auth
+
+    @Column(name = "connection_protocol")
+    private String connectionProtocol = "HTTP"; // HTTP, MQTT, WEBSOCKET, NONE
+
+    @Column(name = "connection_status")
+    private String connectionStatus = "DISCONNECTED"; // CONNECTED, DISCONNECTED, ERROR
+
+    @Column(name = "last_command_at")
+    private Instant lastCommandAt;
+
+    @Column(name = "firmware_version")
+    private String firmwareVersion;
+
+    // ── Camera Stream Configuration ──────────────────────────────────────────
+    @Column(name = "stream_url")
+    private String streamUrl; // RTSP, HTTP, HLS stream URL
+
+    @Column(name = "stream_type")
+    private String streamType; // RTSP, HTTP, HLS, MJPEG
+
+    @Column(name = "stream_username")
+    private String streamUsername;
+
+    @Column(name = "stream_password_encrypted")
+    private String streamPasswordEncrypted;
+
+    @Column(name = "stream_resolution")
+    private String streamResolution; // 1080p, 720p, etc.
+
+    @Column(name = "stream_fps")
+    private Integer streamFps;
 }
