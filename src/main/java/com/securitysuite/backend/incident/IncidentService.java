@@ -1,6 +1,7 @@
 package com.securitysuite.backend.incident;
 
 import com.securitysuite.backend.common.NotFoundException;
+import com.securitysuite.backend.pushnotification.PushNotificationService;
 import com.securitysuite.backend.user.User;
 import com.securitysuite.backend.user.UserRepository;
 import com.securitysuite.backend.zone.Zone;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,6 +25,7 @@ public class IncidentService {
     private final IncidentRepository incidentRepository;
     private final UserRepository userRepository;
     private final ZoneRepository zoneRepository;
+    private final PushNotificationService pushNotificationService;
 
     public Page<IncidentDto> listAll(IncidentStatus status, IncidentType type, IncidentSeverity severity,
                                      UUID zoneId, UUID assignedToId, Pageable pageable) {

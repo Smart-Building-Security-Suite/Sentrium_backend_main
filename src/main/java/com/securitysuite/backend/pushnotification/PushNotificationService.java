@@ -3,9 +3,10 @@ package com.securitysuite.backend.pushnotification;
 import com.securitysuite.backend.common.NotFoundException;
 import com.securitysuite.backend.user.User;
 import com.securitysuite.backend.user.UserRepository;
-import io.github.hlspablo.exposdkjava.ExpoPushNotificationClient;
-import io.github.hlspablo.exposdkjava.dto.PushNotification;
-import io.github.hlspablo.exposdkjava.dto.response.TicketResponse;
+import com.niamedtech.expo.exposerversdk.ExpoPushNotificationClient;
+import com.niamedtech.expo.exposerversdk.request.PushNotification;
+import com.niamedtech.expo.exposerversdk.response.Status;
+import com.niamedtech.expo.exposerversdk.response.TicketResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -155,10 +156,12 @@ public class PushNotificationService {
         notification.setTitle(title);
         notification.setBody(body);
         notification.setSound("default");
-        notification.setPriority("high");
+        notification.setPriority(PushNotification.Priority.NORMAL);
 
-        if (data != null) {
-            notification.setData(data);
+        if (data != null && data instanceof java.util.Map<?, ?>) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> dataMap = (java.util.Map<String, Object>) data;
+            notification.setData(dataMap);
         }
 
         try {
@@ -169,7 +172,7 @@ public class PushNotificationService {
             List<String> errors = new ArrayList<>();
 
             for (TicketResponse.Ticket ticket : tickets) {
-                if ("ok".equalsIgnoreCase(ticket.getStatus())) {
+                if (ticket.getStatus() == Status.OK) {
                     successCount++;
                 } else {
                     failureCount++;

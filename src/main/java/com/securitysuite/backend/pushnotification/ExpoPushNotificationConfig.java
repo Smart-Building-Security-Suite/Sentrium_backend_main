@@ -1,6 +1,6 @@
 package com.securitysuite.backend.pushnotification;
 
-import io.github.hlspablo.exposdkjava.ExpoPushNotificationClient;
+import com.niamedtech.expo.exposerversdk.ExpoPushNotificationClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.springframework.beans.factory.annotation.Value;
