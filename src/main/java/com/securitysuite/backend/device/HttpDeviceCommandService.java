@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.securitysuite.backend.common.NotFoundException;
 import com.securitysuite.backend.user.User;
 import com.securitysuite.backend.user.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
@@ -24,7 +23,6 @@ import java.util.UUID;
  * Service for sending HTTP commands to physical devices (smart locks, gates, etc.)
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class HttpDeviceCommandService {
 
