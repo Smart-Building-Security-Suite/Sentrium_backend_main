@@ -114,26 +114,38 @@ public class DeviceService {
 
         // If device has endpoint configured, send actual command
         if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
-            HttpDeviceCommandService.DeviceCommandResponse response = commandService.unlockDevice(deviceId, 5);
+            try {
+                HttpDeviceCommandService.DeviceCommandResponse response = commandService.unlockDevice(deviceId, 5);
 
-            return Map.of(
-                "id", id,
-                "action", "UNLOCK",
-                "triggeredBy", triggeredBy,
-                "timestamp", Instant.now().toString(),
-                "success", response.success(),
-                "message", response.message(),
-                "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
-            );
+                return Map.of(
+                    "id", id,
+                    "action", "UNLOCK",
+                    "triggeredBy", triggeredBy,
+                    "timestamp", Instant.now().toString(),
+                    "success", response.success(),
+                    "message", response.message() != null ? response.message() : "",
+                    "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
+                );
+            } catch (Exception e) {
+                log.error("Failed to execute unlock command on device {}: {}", id, e.getMessage(), e);
+                return Map.of(
+                    "id", id,
+                    "action", "UNLOCK",
+                    "triggeredBy", triggeredBy,
+                    "timestamp", Instant.now().toString(),
+                    "success", false,
+                    "message", "Command failed: " + e.getMessage()
+                );
+            }
         } else {
-            // Legacy behavior - just log (no actual device control)
             log.info("Device unlocked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
             return Map.of(
                 "id", id,
                 "action", "UNLOCK",
                 "triggeredBy", triggeredBy,
                 "timestamp", Instant.now().toString(),
-                "warning", "Device endpoint not configured. This is a metadata-only operation."
+                "success", true,
+                "message", "Device endpoint not configured. Command recorded but not sent to hardware."
             );
         }
     }
@@ -210,17 +222,29 @@ public class DeviceService {
         }
 
         if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
-            HttpDeviceCommandService.DeviceCommandResponse response = commandService.lockDevice(deviceId);
+            try {
+                HttpDeviceCommandService.DeviceCommandResponse response = commandService.lockDevice(deviceId);
 
-            return Map.of(
-                "id", id,
-                "action", "LOCK",
-                "triggeredBy", triggeredBy,
-                "timestamp", Instant.now().toString(),
-                "success", response.success(),
-                "message", response.message(),
-                "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
-            );
+                return Map.of(
+                    "id", id,
+                    "action", "LOCK",
+                    "triggeredBy", triggeredBy,
+                    "timestamp", Instant.now().toString(),
+                    "success", response.success(),
+                    "message", response.message() != null ? response.message() : "",
+                    "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
+                );
+            } catch (Exception e) {
+                log.error("Failed to execute lock command on device {}: {}", id, e.getMessage(), e);
+                return Map.of(
+                    "id", id,
+                    "action", "LOCK",
+                    "triggeredBy", triggeredBy,
+                    "timestamp", Instant.now().toString(),
+                    "success", false,
+                    "message", "Command failed: " + e.getMessage()
+                );
+            }
         } else {
             log.info("Device locked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
             return Map.of(
@@ -228,7 +252,8 @@ public class DeviceService {
                 "action", "LOCK",
                 "triggeredBy", triggeredBy,
                 "timestamp", Instant.now().toString(),
-                "warning", "Device endpoint not configured. This is a metadata-only operation."
+                "success", true,
+                "message", "Device endpoint not configured. Command recorded but not sent to hardware."
             );
         }
     }

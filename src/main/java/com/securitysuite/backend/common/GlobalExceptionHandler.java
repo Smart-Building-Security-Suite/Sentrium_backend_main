@@ -43,10 +43,15 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Invalid request", request.getRequestURI());
     }
 
-    @ExceptionHandler({EntityNotFoundException.class, NotFoundException.class})
-    public ResponseEntity<ApiError> handleNotFound(Exception ex, HttpServletRequest request) {
-        // SECURITY: Log full message but return generic error to prevent enumeration
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest request) {
         log.info("Not found on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiError> handleEntityNotFound(EntityNotFoundException ex, HttpServletRequest request) {
+        log.info("Entity not found on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return build(HttpStatus.NOT_FOUND, "Resource not found", request.getRequestURI());
     }
 

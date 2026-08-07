@@ -105,7 +105,12 @@ public class HttpDeviceCommandService {
             command.setCommandPayload(payload.toString());
         }
 
-        command = commandRepository.save(command);
+        try {
+            command = commandRepository.save(command);
+        } catch (Exception e) {
+            log.error("Failed to persist command record for device {}: {}", deviceId, e.getMessage());
+            return DeviceCommandResponse.error("Failed to record command: " + e.getMessage());
+        }
 
         // Send HTTP request to device
         try {
@@ -158,7 +163,7 @@ public class HttpDeviceCommandService {
                     response.getBody()
             );
 
-        } catch (RestClientException e) {
+        } catch (Exception e) {
             // Update command record with failure
             command.setStatus(DeviceCommand.CommandStatus.FAILED);
             command.setExecutedAt(Instant.now());
