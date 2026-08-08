@@ -87,7 +87,9 @@ class AlertControllerTest {
         rawAlert.setStatus(AlertStatus.OPEN);
         rawAlert.setMessage("Motion detected");
         rawAlert.setCreatedAt(java.time.Instant.now());
-        given(alertService.list(any(), any())).willReturn(List.of(rawAlert));
+
+        Page<Alert> page = new PageImpl<>(List.of(rawAlert));
+        given(alertService.list(any(), any(), any(), any(), any())).willReturn(page);
 
         mockMvc.perform(get("/alerts").param("page", "0").param("size", "10"))
                 .andExpect(status().isOk())
