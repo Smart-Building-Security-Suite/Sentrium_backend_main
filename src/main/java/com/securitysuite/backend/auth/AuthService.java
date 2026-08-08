@@ -46,8 +46,9 @@ public class AuthService {
         User user = userRepository.findByPhoneNumber(request.phoneNumber())
                 .orElseThrow(() -> new NotFoundException("User not found"));
         UserDetails details = userDetailsService.loadUserByUsername(user.getPhoneNumber());
-        setRefreshCookie(response, jwtService.generateRefreshToken(details));
-        return new AuthResponse(jwtService.generateAccessToken(details), jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
+        String refreshToken = jwtService.generateRefreshToken(details);
+        setRefreshCookie(response, refreshToken);
+        return new AuthResponse(jwtService.generateAccessToken(details), refreshToken, jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
     }
 
     // ── Refresh ───────────────────────────────────────────────────────────────
@@ -68,8 +69,9 @@ public class AuthService {
             }
             // Rotate: revoke the old token, issue a new one.
             revokeToken(refreshToken);
-            setRefreshCookie(response, jwtService.generateRefreshToken(details));
-            return new AuthResponse(jwtService.generateAccessToken(details), jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
+            String newRefreshToken = jwtService.generateRefreshToken(details);
+            setRefreshCookie(response, newRefreshToken);
+            return new AuthResponse(jwtService.generateAccessToken(details), newRefreshToken, jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
         } catch (JwtException | IllegalArgumentException ex) {
             throw new BadCredentialsException("Invalid refresh token");
         }
@@ -335,8 +337,9 @@ public class AuthService {
         log.info("New user registered via OTP flow: {} ({})", pending.getPhoneNumber(), role);
 
         UserDetails details = userDetailsService.loadUserByUsername(user.getPhoneNumber());
-        setRefreshCookie(response, jwtService.generateRefreshToken(details));
-        return new AuthResponse(jwtService.generateAccessToken(details), jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
+        String refreshToken = jwtService.generateRefreshToken(details);
+        setRefreshCookie(response, refreshToken);
+        return new AuthResponse(jwtService.generateAccessToken(details), refreshToken, jwtService.getAccessExpirationSeconds(), UserSummary.from(user));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

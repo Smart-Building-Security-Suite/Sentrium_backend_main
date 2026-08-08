@@ -13,6 +13,6 @@ public interface PatrolSessionRepository extends JpaRepository<PatrolSession, UU
 
     List<PatrolSession> findByStatus(PatrolSessionStatus status);
 
-    @Query("SELECT ps FROM PatrolSession ps WHERE ps.officer.id = :officerId AND ps.status = 'IN_PROGRESS'")
-    Optional<PatrolSession> findActiveSessionByOfficer(@Param("officerId") UUID officerId);
+    @Query("SELECT ps FROM PatrolSession ps WHERE ps.officer.id = :officerId AND ps.status = :inProgressStatus")
+    Optional<PatrolSession> findActiveSessionByOfficer(@Param("officerId") UUID officerId, @Param("inProgressStatus") PatrolSessionStatus inProgressStatus);
 }

@@ -108,7 +108,7 @@ public class PatrolService {
                 .orElseThrow(() -> new NotFoundException("Officer not found"));
 
         // Check if officer already has active session
-        sessionRepository.findActiveSessionByOfficer(officer.getId())
+        sessionRepository.findActiveSessionByOfficer(officer.getId(), PatrolSessionStatus.IN_PROGRESS)
                 .ifPresent(s -> {
                     throw new IllegalStateException("Officer already has an active patrol session");
                 });
@@ -210,7 +210,7 @@ public class PatrolService {
     }
 
     public PatrolSessionDto getActiveSessionForOfficer(UUID officerId) {
-        return sessionRepository.findActiveSessionByOfficer(officerId)
+        return sessionRepository.findActiveSessionByOfficer(officerId, PatrolSessionStatus.IN_PROGRESS)
                 .map(PatrolSessionDto::from)
                 .orElse(null);
     }

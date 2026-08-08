@@ -18,8 +18,10 @@ public interface PushNotificationDeviceRepository extends JpaRepository<PushNoti
     @Query("SELECT d FROM PushNotificationDevice d WHERE d.user.id = :userId AND d.active = true")
     List<PushNotificationDevice> findActiveDevicesByUser(@Param("userId") UUID userId);
 
-    @Query("SELECT d FROM PushNotificationDevice d WHERE d.user.role IN ('ADMIN', 'SECURITY_OFFICER') AND d.active = true")
-    List<PushNotificationDevice> findAllSecurityPersonnelDevices();
+    @Query("SELECT d FROM PushNotificationDevice d WHERE (d.user.role = :adminRole OR d.user.role = :securityOfficerRole) AND d.active = true")
+    List<PushNotificationDevice> findAllSecurityPersonnelDevices(
+            @Param("adminRole") com.securitysuite.backend.user.Role adminRole,
+            @Param("securityOfficerRole") com.securitysuite.backend.user.Role securityOfficerRole);
 
     void deleteByExpoToken(String expoToken);
 }

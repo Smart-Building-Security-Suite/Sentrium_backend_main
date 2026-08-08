@@ -104,13 +104,13 @@ public class EmergencyService {
     }
 
     public List<EmergencyEventDto> listActive() {
-        return eventRepository.findActiveEmergencies().stream()
+        return eventRepository.findActiveEmergencies(EmergencyStatus.ACTIVE).stream()
                 .map(EmergencyEventDto::from)
                 .toList();
     }
 
     public long countActive() {
-        return eventRepository.countActiveEmergencies();
+        return eventRepository.countActiveEmergencies(EmergencyStatus.ACTIVE);
     }
 
     public EmergencyEventDto getById(UUID id) {

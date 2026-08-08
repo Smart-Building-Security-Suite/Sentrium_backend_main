@@ -26,8 +26,8 @@ public interface AlertRepository extends JpaRepository<Alert, UUID>, org.springf
     @Query("select distinct a.zone from Alert a where function('date', a.createdAt) = :date")
     List<Zone> zonesWithActivityToday(@Param("date") LocalDate date);
 
-    @Query("select a from Alert a where a.status in ('OPEN', 'ACKNOWLEDGED') order by a.createdAt desc")
-    List<Alert> findRecentOpenAlerts(org.springframework.data.domain.Pageable pageable);
+    @Query("SELECT a FROM Alert a WHERE a.status = :openStatus OR a.status = :acknowledgedStatus ORDER BY a.createdAt DESC")
+    List<Alert> findRecentOpenAlerts(@Param("openStatus") AlertStatus openStatus, @Param("acknowledgedStatus") AlertStatus acknowledgedStatus, org.springframework.data.domain.Pageable pageable);
 
     // Additional filtering methods
     List<Alert> findByZoneId(UUID zoneId);

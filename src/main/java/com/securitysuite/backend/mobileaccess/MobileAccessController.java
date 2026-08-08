@@ -62,8 +62,7 @@ public class MobileAccessController {
                description = "Retrieves all QR access tokens for the authenticated user including active, expired, and revoked tokens. Available to all authenticated users.")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MobileAccessTokenDto>> getMyTokens(@AuthenticationPrincipal UserDetails principal) {
-        // TODO: Get user ID from principal
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(mobileAccessService.getMyTokens(principal.getUsername()));
     }
 
     @GetMapping("/tokens/{id}")

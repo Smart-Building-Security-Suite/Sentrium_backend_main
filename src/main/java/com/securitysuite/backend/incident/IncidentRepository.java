@@ -24,12 +24,16 @@ public interface IncidentRepository extends JpaRepository<Incident, UUID> {
     @Query("SELECT i FROM Incident i WHERE i.reportedAt BETWEEN :start AND :end")
     List<Incident> findByDateRange(@Param("start") Instant start, @Param("end") Instant end);
 
-    @Query("SELECT i FROM Incident i WHERE i.status IN ('OPEN', 'INVESTIGATING', 'IN_PROGRESS')")
-    List<Incident> findOpenIncidents();
+    @Query("SELECT i FROM Incident i WHERE i.status = :openStatus OR i.status = :investigatingStatus OR i.status = :inProgressStatus")
+    List<Incident> findOpenIncidents(@Param("openStatus") IncidentStatus openStatus,
+                                      @Param("investigatingStatus") IncidentStatus investigatingStatus,
+                                      @Param("inProgressStatus") IncidentStatus inProgressStatus);
 
-    @Query("SELECT COUNT(i) FROM Incident i WHERE i.status IN ('OPEN', 'INVESTIGATING', 'IN_PROGRESS')")
-    long countOpenIncidents();
+    @Query("SELECT COUNT(i) FROM Incident i WHERE i.status = :openStatus OR i.status = :investigatingStatus OR i.status = :inProgressStatus")
+    long countOpenIncidents(@Param("openStatus") IncidentStatus openStatus,
+                            @Param("investigatingStatus") IncidentStatus investigatingStatus,
+                            @Param("inProgressStatus") IncidentStatus inProgressStatus);
 
-    @Query("SELECT i FROM Incident i WHERE i.requiresFollowUp = true AND i.followUpDate <= :now AND i.status != 'CLOSED'")
-    List<Incident> findDueForFollowUp(@Param("now") Instant now);
+    @Query("SELECT i FROM Incident i WHERE i.requiresFollowUp = true AND i.followUpDate <= :now AND i.status != :closedStatus")
+    List<Incident> findDueForFollowUp(@Param("now") Instant now, @Param("closedStatus") IncidentStatus closedStatus);
 }

@@ -66,7 +66,7 @@ class AuthControllerTest {
     void completeSignupSuccess() throws Exception {
         RegisterRequest request = new RegisterRequest("signup-token-123", "Test User", "Secret123!", Role.SECURITY_OFFICER);
         UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "+1234567890", Role.SECURITY_OFFICER);
-        AuthResponse response = new AuthResponse("mock-access-token", 900L, summary);
+        AuthResponse response = new AuthResponse("mock-access-token", "mock-refresh-token", 900L, summary);
 
         given(authService.completeSignup(eq("signup-token-123"), eq("Test User"), eq("Secret123!"), eq(Role.SECURITY_OFFICER), any())).willReturn(response);
 
@@ -85,7 +85,7 @@ class AuthControllerTest {
     void loginSuccess() throws Exception {
         LoginRequest request = new LoginRequest("+1234567890", "Secret123!");
         UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "+1234567890", Role.SECURITY_OFFICER);
-        AuthResponse response = new AuthResponse("mock-access-token", 900L, summary);
+        AuthResponse response = new AuthResponse("mock-access-token", "mock-refresh-token", 900L, summary);
 
         given(authService.login(any(LoginRequest.class), any())).willReturn(response);
 
@@ -101,7 +101,7 @@ class AuthControllerTest {
     @DisplayName("POST /auth/refresh - With Valid Refresh Token Cookie")
     void refreshSuccess() throws Exception {
         UserSummary summary = new UserSummary(UUID.randomUUID(), "Test User", "+1234567890", Role.SECURITY_OFFICER);
-        AuthResponse response = new AuthResponse("new-access-token", 900L, summary);
+        AuthResponse response = new AuthResponse("new-access-token", "new-refresh-token", 900L, summary);
 
         given(authService.refresh(eq("valid-refresh-cookie"), any())).willReturn(response);
 

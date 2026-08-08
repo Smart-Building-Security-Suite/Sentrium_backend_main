@@ -115,7 +115,10 @@ public class PushNotificationService {
      * Send push notification to all security personnel (ADMIN + SECURITY_OFFICER)
      */
     public SendNotificationResult sendToSecurityPersonnel(String title, String body, Object data) {
-        List<PushNotificationDevice> devices = deviceRepository.findAllSecurityPersonnelDevices();
+        List<PushNotificationDevice> devices = deviceRepository.findAllSecurityPersonnelDevices(
+                com.securitysuite.backend.user.Role.ADMIN,
+                com.securitysuite.backend.user.Role.SECURITY_OFFICER
+        );
 
         if (devices.isEmpty()) {
             log.warn("No active devices found for security personnel");

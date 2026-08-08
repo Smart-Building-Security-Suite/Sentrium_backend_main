@@ -119,14 +119,14 @@ public class VisitorService {
     }
 
     public List<VisitorDto> getCurrentVisitors() {
-        return visitorRepository.findCurrentlyOnPremises()
+        return visitorRepository.findCurrentlyOnPremises(VisitorStatus.CHECKED_IN)
                 .stream()
                 .map(VisitorDto::from)
                 .toList();
     }
 
     public long getCurrentVisitorCount() {
-        return visitorRepository.countCurrentVisitors();
+        return visitorRepository.countCurrentVisitors(VisitorStatus.CHECKED_IN);
     }
 
     public VisitorDto getById(UUID id) {

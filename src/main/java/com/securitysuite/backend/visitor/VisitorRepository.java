@@ -15,15 +15,15 @@ public interface VisitorRepository extends JpaRepository<Visitor, UUID> {
 
     Page<Visitor> findByHostId(UUID hostId, Pageable pageable);
 
-    @Query("SELECT v FROM Visitor v WHERE v.status = 'CHECKED_IN'")
-    List<Visitor> findCurrentlyOnPremises();
+    @Query("SELECT v FROM Visitor v WHERE v.status = :checkedInStatus")
+    List<Visitor> findCurrentlyOnPremises(@Param("checkedInStatus") VisitorStatus checkedInStatus);
 
     @Query("SELECT v FROM Visitor v WHERE v.expectedArrivalAt BETWEEN :start AND :end")
     List<Visitor> findExpectedVisitors(@Param("start") Instant start, @Param("end") Instant end);
 
-    @Query("SELECT v FROM Visitor v WHERE v.status = 'PRE_REGISTERED' AND v.expectedArrivalAt < :now")
-    List<Visitor> findOverdueVisitors(@Param("now") Instant now);
+    @Query("SELECT v FROM Visitor v WHERE v.status = :preRegisteredStatus AND v.expectedArrivalAt < :now")
+    List<Visitor> findOverdueVisitors(@Param("now") Instant now, @Param("preRegisteredStatus") VisitorStatus preRegisteredStatus);
 
-    @Query("SELECT COUNT(v) FROM Visitor v WHERE v.status = 'CHECKED_IN'")
-    long countCurrentVisitors();
+    @Query("SELECT COUNT(v) FROM Visitor v WHERE v.status = :checkedInStatus")
+    long countCurrentVisitors(@Param("checkedInStatus") VisitorStatus checkedInStatus);
 }

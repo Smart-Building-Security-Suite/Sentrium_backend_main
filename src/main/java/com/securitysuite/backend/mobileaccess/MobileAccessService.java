@@ -137,5 +137,11 @@ public class MobileAccessService {
                 .orElseThrow(() -> new NotFoundException("Token not found")));
     }
 
+    public List<MobileAccessTokenDto> getMyTokens(String phoneNumber) {
+        User user = userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        return getUserTokens(user.getId());
+    }
+
     public record ValidationResult(boolean granted, String message, MobileAccessTokenDto token) {}
 }

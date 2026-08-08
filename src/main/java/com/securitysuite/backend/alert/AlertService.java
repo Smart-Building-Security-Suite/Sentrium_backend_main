@@ -131,7 +131,7 @@ public class AlertService {
 
     public List<Alert> getRecentOpenAlerts(int limit) {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit);
-        return alertRepository.findRecentOpenAlerts(pageable);
+        return alertRepository.findRecentOpenAlerts(AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED, pageable);
     }
 
     public record CreateAlertRequest(UUID zoneId, UUID deviceId, AlertSeverity severity, String message) {}

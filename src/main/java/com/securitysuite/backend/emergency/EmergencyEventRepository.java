@@ -9,9 +9,9 @@ import java.util.UUID;
 public interface EmergencyEventRepository extends JpaRepository<EmergencyEvent, UUID> {
     List<EmergencyEvent> findByStatus(EmergencyStatus status);
 
-    @Query("SELECT e FROM EmergencyEvent e WHERE e.status = 'ACTIVE' ORDER BY e.triggeredAt DESC")
-    List<EmergencyEvent> findActiveEmergencies();
+    @Query("SELECT e FROM EmergencyEvent e WHERE e.status = :activeStatus ORDER BY e.triggeredAt DESC")
+    List<EmergencyEvent> findActiveEmergencies(@org.springframework.data.repository.query.Param("activeStatus") EmergencyStatus activeStatus);
 
-    @Query("SELECT COUNT(e) FROM EmergencyEvent e WHERE e.status = 'ACTIVE'")
-    long countActiveEmergencies();
+    @Query("SELECT COUNT(e) FROM EmergencyEvent e WHERE e.status = :activeStatus")
+    long countActiveEmergencies(@org.springframework.data.repository.query.Param("activeStatus") EmergencyStatus activeStatus);
 }

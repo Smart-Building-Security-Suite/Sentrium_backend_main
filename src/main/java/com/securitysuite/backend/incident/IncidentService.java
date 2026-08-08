@@ -160,13 +160,21 @@ public class IncidentService {
     }
 
     public List<IncidentDto> getOpenIncidents() {
-        return incidentRepository.findOpenIncidents().stream()
+        return incidentRepository.findOpenIncidents(
+                IncidentStatus.OPEN,
+                IncidentStatus.INVESTIGATING,
+                IncidentStatus.IN_PROGRESS
+        ).stream()
                 .map(IncidentDto::from)
                 .toList();
     }
 
     public long getOpenIncidentCount() {
-        return incidentRepository.countOpenIncidents();
+        return incidentRepository.countOpenIncidents(
+                IncidentStatus.OPEN,
+                IncidentStatus.INVESTIGATING,
+                IncidentStatus.IN_PROGRESS
+        );
     }
 
     public record CreateIncidentRequest(
