@@ -24,9 +24,13 @@ public class DeviceController {
 
     @GetMapping
     @Operation(summary = "List all devices",
-               description = "Retrieves all security devices. Optionally filter by zoneId to get devices in a specific zone.")
-    public List<DeviceDto> list(@RequestParam(required = false) UUID zoneId) {
-        return deviceService.listAll(zoneId);
+               description = "Retrieves all security devices with optional filters by zone, type, status, and active state. By default, only active devices are returned.")
+    public List<DeviceDto> list(
+            @RequestParam(required = false) UUID zoneId,
+            @RequestParam(required = false) DeviceType type,
+            @RequestParam(required = false) DeviceStatus status,
+            @RequestParam(required = false) Boolean active) {
+        return deviceService.listAll(zoneId, type, status, active);
     }
 
     @PostMapping

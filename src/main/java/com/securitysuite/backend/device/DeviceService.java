@@ -25,14 +25,36 @@ public class DeviceService {
     private final ZoneService zoneService;
     private final DeviceStatusHistoryRepository historyRepository;
     private final HttpDeviceCommandService commandService;
+    private final com.securitysuite.backend.security.EncryptionService encryptionService;
 
-    public List<DeviceDto> listAll(UUID zoneId) {
-        List<Device> devices = zoneId == null
-                ? deviceRepository.findAll()
-                : deviceRepository.findByZoneId(zoneId);
-        // Filter to only show active devices by default
+    public List<DeviceDto> listAll(UUID zoneId, DeviceType type, DeviceStatus status, Boolean active) {
+        List<Device> devices;
+
+        // Apply filters based on what's provided
+        if (zoneId != null && type != null && status != null) {
+            devices = deviceRepository.findByZoneIdAndTypeAndStatus(zoneId, type, status);
+        } else if (zoneId != null && type != null) {
+            devices = deviceRepository.findByZoneIdAndType(zoneId, type);
+        } else if (zoneId != null && status != null) {
+            devices = deviceRepository.findByZoneIdAndStatus(zoneId, status);
+        } else if (type != null && status != null) {
+            devices = deviceRepository.findByTypeAndStatus(type, status);
+        } else if (zoneId != null) {
+            devices = deviceRepository.findByZoneId(zoneId);
+        } else if (type != null) {
+            devices = deviceRepository.findByType(type);
+        } else if (status != null) {
+            devices = deviceRepository.findByStatus(status);
+        } else if (active != null) {
+            devices = deviceRepository.findByActive(active);
+        } else {
+            devices = deviceRepository.findAll();
+        }
+
+        // Filter by active status if specified, otherwise default to showing only active devices
+        final boolean showActive = active != null ? active : true;
         return devices.stream()
-                .filter(Device::getActive)
+                .filter(device -> active == null ? device.getActive() : device.getActive() == showActive)
                 .map(DeviceDto::from)
                 .toList();
     }
@@ -100,53 +122,61 @@ public class DeviceService {
 
     @Transactional
     public Map<String, Object> unlockDevice(String id) {
-        UUID deviceId = UUID.fromString(id);
-        Device device = getById(deviceId);
+        try {
+            UUID deviceId = UUID.fromString(id);
+            Device device = getById(deviceId);
 
-        if (device.getType() != DeviceType.ACCESS_POINT) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device is not an ACCESS_POINT");
-        }
+            if (device.getType() != DeviceType.ACCESS_POINT) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device is not an ACCESS_POINT");
+            }
 
-        String triggeredBy = "unknown";
-        if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
-            triggeredBy = SecurityContextHolder.getContext().getAuthentication().getName();
-        }
+            String triggeredBy = "unknown";
+            if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
+                triggeredBy = SecurityContextHolder.getContext().getAuthentication().getName();
+            }
 
-        // If device has endpoint configured, send actual command
-        if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
-            try {
-                HttpDeviceCommandService.DeviceCommandResponse response = commandService.unlockDevice(deviceId, 5);
+            // If device has endpoint configured, send actual command
+            if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
+                try {
+                    HttpDeviceCommandService.DeviceCommandResponse response = commandService.unlockDevice(deviceId, 5);
 
+                    return Map.of(
+                        "id", id,
+                        "action", "UNLOCK",
+                        "triggeredBy", triggeredBy,
+                        "timestamp", Instant.now().toString(),
+                        "success", response.success(),
+                        "message", response.message() != null ? response.message() : "",
+                        "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
+                    );
+                } catch (Exception e) {
+                    log.error("Failed to execute unlock command on device {}: {}", id, e.getMessage(), e);
+                    return Map.of(
+                        "id", id,
+                        "action", "UNLOCK",
+                        "triggeredBy", triggeredBy,
+                        "timestamp", Instant.now().toString(),
+                        "success", false,
+                        "message", "Command failed: " + e.getMessage()
+                    );
+                }
+            } else {
+                log.info("Device unlocked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
                 return Map.of(
                     "id", id,
                     "action", "UNLOCK",
                     "triggeredBy", triggeredBy,
                     "timestamp", Instant.now().toString(),
-                    "success", response.success(),
-                    "message", response.message() != null ? response.message() : "",
-                    "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
-                );
-            } catch (Exception e) {
-                log.error("Failed to execute unlock command on device {}: {}", id, e.getMessage(), e);
-                return Map.of(
-                    "id", id,
-                    "action", "UNLOCK",
-                    "triggeredBy", triggeredBy,
-                    "timestamp", Instant.now().toString(),
-                    "success", false,
-                    "message", "Command failed: " + e.getMessage()
+                    "success", true,
+                    "message", "Device endpoint not configured. Command recorded but not sent to hardware."
                 );
             }
-        } else {
-            log.info("Device unlocked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
-            return Map.of(
-                "id", id,
-                "action", "UNLOCK",
-                "triggeredBy", triggeredBy,
-                "timestamp", Instant.now().toString(),
-                "success", true,
-                "message", "Device endpoint not configured. Command recorded but not sent to hardware."
-            );
+        } catch (ResponseStatusException e) {
+            // Re-throw ResponseStatusException so it's handled properly by Spring
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error in unlockDevice for id {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("Failed to unlock device: " + e.getMessage(), e);
         }
     }
 
@@ -176,8 +206,8 @@ public class DeviceService {
             device.setEndpointUrl(request.endpointUrl());
         }
         if (request.apiKey() != null) {
-            // TODO: Encrypt the API key before storing
-            device.setApiKeyEncrypted(request.apiKey());
+            // Encrypt API key before storing
+            device.setApiKeyEncrypted(encryptionService.encrypt(request.apiKey()));
         }
         if (request.connectionProtocol() != null) {
             device.setConnectionProtocol(request.connectionProtocol());
@@ -192,8 +222,8 @@ public class DeviceService {
             device.setStreamUsername(request.streamUsername());
         }
         if (request.streamPassword() != null) {
-            // TODO: Encrypt the stream password before storing
-            device.setStreamPasswordEncrypted(request.streamPassword());
+            // Encrypt stream password before storing
+            device.setStreamPasswordEncrypted(encryptionService.encrypt(request.streamPassword()));
         }
         if (request.streamResolution() != null) {
             device.setStreamResolution(request.streamResolution());
@@ -209,52 +239,60 @@ public class DeviceService {
 
     @Transactional
     public Map<String, Object> lockDevice(String id) {
-        UUID deviceId = UUID.fromString(id);
-        Device device = getById(deviceId);
+        try {
+            UUID deviceId = UUID.fromString(id);
+            Device device = getById(deviceId);
 
-        if (device.getType() != DeviceType.ACCESS_POINT) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device is not an ACCESS_POINT");
-        }
+            if (device.getType() != DeviceType.ACCESS_POINT) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device is not an ACCESS_POINT");
+            }
 
-        String triggeredBy = "unknown";
-        if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
-            triggeredBy = SecurityContextHolder.getContext().getAuthentication().getName();
-        }
+            String triggeredBy = "unknown";
+            if (SecurityContextHolder.getContext() != null && SecurityContextHolder.getContext().getAuthentication() != null) {
+                triggeredBy = SecurityContextHolder.getContext().getAuthentication().getName();
+            }
 
-        if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
-            try {
-                HttpDeviceCommandService.DeviceCommandResponse response = commandService.lockDevice(deviceId);
+            if (device.getEndpointUrl() != null && !device.getEndpointUrl().isBlank()) {
+                try {
+                    HttpDeviceCommandService.DeviceCommandResponse response = commandService.lockDevice(deviceId);
 
+                    return Map.of(
+                        "id", id,
+                        "action", "LOCK",
+                        "triggeredBy", triggeredBy,
+                        "timestamp", Instant.now().toString(),
+                        "success", response.success(),
+                        "message", response.message() != null ? response.message() : "",
+                        "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
+                    );
+                } catch (Exception e) {
+                    log.error("Failed to execute lock command on device {}: {}", id, e.getMessage(), e);
+                    return Map.of(
+                        "id", id,
+                        "action", "LOCK",
+                        "triggeredBy", triggeredBy,
+                        "timestamp", Instant.now().toString(),
+                        "success", false,
+                        "message", "Command failed: " + e.getMessage()
+                    );
+                }
+            } else {
+                log.info("Device locked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
                 return Map.of(
                     "id", id,
                     "action", "LOCK",
                     "triggeredBy", triggeredBy,
                     "timestamp", Instant.now().toString(),
-                    "success", response.success(),
-                    "message", response.message() != null ? response.message() : "",
-                    "commandId", response.commandId() != null ? response.commandId().toString() : "N/A"
-                );
-            } catch (Exception e) {
-                log.error("Failed to execute lock command on device {}: {}", id, e.getMessage(), e);
-                return Map.of(
-                    "id", id,
-                    "action", "LOCK",
-                    "triggeredBy", triggeredBy,
-                    "timestamp", Instant.now().toString(),
-                    "success", false,
-                    "message", "Command failed: " + e.getMessage()
+                    "success", true,
+                    "message", "Device endpoint not configured. Command recorded but not sent to hardware."
                 );
             }
-        } else {
-            log.info("Device locked (metadata only): id={}, triggeredBy={}", id, triggeredBy);
-            return Map.of(
-                "id", id,
-                "action", "LOCK",
-                "triggeredBy", triggeredBy,
-                "timestamp", Instant.now().toString(),
-                "success", true,
-                "message", "Device endpoint not configured. Command recorded but not sent to hardware."
-            );
+        } catch (ResponseStatusException e) {
+            // Re-throw ResponseStatusException so it's handled properly by Spring
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error in lockDevice for id {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("Failed to lock device: " + e.getMessage(), e);
         }
     }
 

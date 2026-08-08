@@ -24,8 +24,8 @@ public record AlertDto(
     public static AlertDto from(Alert alert) {
         return new AlertDto(
                 alert.getId(),
-                alert.getZone().getId(),
-                alert.getZone().getName(),
+                alert.getZone() != null ? alert.getZone().getId() : null,
+                alert.getZone() != null ? alert.getZone().getName() : null,
                 alert.getDevice() == null ? null : alert.getDevice().getId(),
                 alert.getDevice() == null ? null : alert.getDevice().getName(),
                 alert.getSeverity(),

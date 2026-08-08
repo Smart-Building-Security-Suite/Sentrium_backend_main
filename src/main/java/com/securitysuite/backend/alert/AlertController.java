@@ -26,20 +26,25 @@ public class AlertController {
 
     @GetMapping
     @Operation(summary = "List alerts with filtering",
-               description = "Retrieves paginated alerts with optional filters by status and severity. Default page size is 20 to prevent memory issues. Available to all authenticated users.")
+               description = "Retrieves paginated alerts with optional filters by status, severity, zone, and device. Default page size is 20 to prevent memory issues. Available to all authenticated users.")
     @PreAuthorize("isAuthenticated()")
     public Page<AlertDto> list(
             @RequestParam(required = false) AlertStatus status,
             @RequestParam(required = false) AlertSeverity severity,
+            @RequestParam(required = false) UUID zoneId,
+            @RequestParam(required = false) UUID deviceId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        List<Alert> results = alertService.list(status, severity);
-        // Apply pagination in-memory over the filtered results.
-        // TODO: push filters + pagination into a repository query for large datasets.
-        int start = Math.min(page * size, results.size());
-        int end   = Math.min(start + size, results.size());
-        List<AlertDto> dtos = results.subList(start, end).stream().map(AlertDto::from).toList();
-        return new PageImpl<>(dtos, PageRequest.of(page, size), results.size());
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort) {
+
+        String[] sortParts = sort.split(",");
+        Sort.Direction direction = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("asc")
+                ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100), Sort.by(direction, sortParts[0]));
+
+        // Database-level filtering and pagination using JPA Specification
+        Page<Alert> results = alertService.list(status, severity, zoneId, deviceId, pageable);
+        return results.map(AlertDto::from);
     }
 
     @PostMapping

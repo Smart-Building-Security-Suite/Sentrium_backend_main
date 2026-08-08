@@ -31,11 +31,33 @@ public class AlertService {
     @Autowired(required = false)
     private PushNotificationService pushNotificationService;
 
-    public List<Alert> list(AlertStatus status, AlertSeverity severity) {
-        if (status != null && severity != null) return alertRepository.findByStatusAndSeverity(status, severity);
-        if (status != null) return alertRepository.findByStatus(status);
-        if (severity != null) return alertRepository.findBySeverity(severity);
-        return alertRepository.findAll();
+    /**
+     * List alerts with database-level filtering and pagination using JPA Specification
+     */
+    public org.springframework.data.domain.Page<Alert> list(
+            AlertStatus status,
+            AlertSeverity severity,
+            UUID zoneId,
+            UUID deviceId,
+            org.springframework.data.domain.Pageable pageable) {
+
+        org.springframework.data.jpa.domain.Specification<Alert> spec =
+            org.springframework.data.jpa.domain.Specification.where(null);
+
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (severity != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("severity"), severity));
+        }
+        if (zoneId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("zone").get("id"), zoneId));
+        }
+        if (deviceId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("device").get("id"), deviceId));
+        }
+
+        return alertRepository.findAll(spec, pageable);
     }
 
     @Transactional

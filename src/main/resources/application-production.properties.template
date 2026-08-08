@@ -1,0 +1,193 @@
+# ==============================================================================
+# PRODUCTION CONFIGURATION TEMPLATE
+# ==============================================================================
+# Copy this file to application-production.properties and fill in actual values
+# NEVER commit actual production credentials to version control!
+
+# ==============================================================================
+# SERVER CONFIGURATION
+# ==============================================================================
+server.port=8080
+server.error.include-message=always
+server.error.include-stacktrace=never
+server.error.include-exception=false
+
+# ==============================================================================
+# DATABASE CONFIGURATION
+# ==============================================================================
+spring.datasource.url=jdbc:postgresql://YOUR_DB_HOST:5432/YOUR_DB_NAME
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
+
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.properties.hibernate.format_sql=false
+
+# ==============================================================================
+# SECURITY & ENCRYPTION
+# ==============================================================================
+# Generate encryption key with: EncryptionService.generateKey()
+# This is a 256-bit AES key base64 encoded
+app.encryption.key=YOUR_BASE64_ENCODED_256_BIT_KEY_HERE
+
+# JWT Configuration
+app.jwt.secret=YOUR_VERY_LONG_SECRET_KEY_AT_LEAST_512_BITS_HERE
+app.jwt.access-expiration-minutes=15
+app.jwt.refresh-expiration-days=7
+
+# ==============================================================================
+# CORS CONFIGURATION
+# ==============================================================================
+# Comma-separated list of allowed origins
+app.cors.allowed-origins=https://yourdomain.com,https://app.yourdomain.com,https://mobile.yourdomain.com
+app.cors.allowed-methods=GET,POST,PUT,PATCH,DELETE,OPTIONS
+app.cors.max-age=3600
+
+# ==============================================================================
+# SSL/TLS CONFIGURATION
+# ==============================================================================
+# Enable HTTPS
+server.ssl.enabled=true
+server.ssl.key-store=classpath:keystore.p12
+server.ssl.key-store-password=YOUR_KEYSTORE_PASSWORD
+server.ssl.key-store-type=PKCS12
+server.ssl.key-alias=tomcat
+
+# Redirect HTTP to HTTPS
+server.http.port=8080
+security.require-ssl=true
+
+# ==============================================================================
+# VIDEO STORAGE CONFIGURATION
+# ==============================================================================
+app.video.storage-path=/var/sentrium/videos
+app.video.retention-days=30
+app.video.ffmpeg-path=/usr/bin/ffmpeg
+
+# ==============================================================================
+# PUSH NOTIFICATIONS (EXPO)
+# ==============================================================================
+# Get access token from: https://expo.dev/accounts/[account]/settings/access-tokens
+app.expo.access-token=YOUR_EXPO_ACCESS_TOKEN_HERE
+app.expo.push-url=https://exp.host/--/api/v2/push/send
+
+# ==============================================================================
+# SPRING ACTUATOR (Monitoring)
+# ==============================================================================
+management.endpoints.web.exposure.include=health,metrics,prometheus,info
+management.endpoint.health.show-details=when-authorized
+management.metrics.export.prometheus.enabled=true
+management.health.db.enabled=true
+
+# Health check endpoint
+management.endpoint.health.probes.enabled=true
+management.health.livenessState.enabled=true
+management.health.readinessState.enabled=true
+
+# ==============================================================================
+# LOGGING CONFIGURATION
+# ==============================================================================
+logging.level.root=INFO
+logging.level.com.securitysuite.backend=INFO
+logging.level.org.springframework.web=WARN
+logging.level.org.springframework.security=WARN
+logging.level.org.hibernate.SQL=WARN
+
+# Log file configuration
+logging.file.name=/var/log/sentrium/backend.log
+logging.file.max-size=10MB
+logging.file.max-history=30
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} - %msg%n
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+
+# ==============================================================================
+# EMAIL CONFIGURATION (Optional)
+# ==============================================================================
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=YOUR_EMAIL@gmail.com
+spring.mail.password=YOUR_EMAIL_APP_PASSWORD
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+# ==============================================================================
+# ASYNC CONFIGURATION
+# ==============================================================================
+spring.task.execution.pool.core-size=10
+spring.task.execution.pool.max-size=50
+spring.task.execution.pool.queue-capacity=100
+spring.task.scheduling.pool.size=5
+
+# ==============================================================================
+# DATABASE CONNECTION POOL
+# ==============================================================================
+spring.datasource.hikari.maximum-pool-size=20
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.connection-timeout=30000
+spring.datasource.hikari.idle-timeout=600000
+spring.datasource.hikari.max-lifetime=1800000
+
+# ==============================================================================
+# RATE LIMITING (Implemented in RateLimitingFilter)
+# ==============================================================================
+# Default: 100 requests per minute per IP
+# Auth endpoints: 10 requests per minute per IP
+
+# ==============================================================================
+# ANALYTICS SCHEDULE
+# ==============================================================================
+# Analytics aggregation runs daily at midnight
+# Configured in AnalyticsAggregationJob: @Scheduled(cron = "0 0 0 * * *")
+
+# ==============================================================================
+# VIDEO CLEANUP SCHEDULE
+# ==============================================================================
+# Video cleanup runs daily at 2 AM
+# Configured in VideoClipService: @Scheduled(cron = "0 0 2 * * *")
+
+# ==============================================================================
+# NOTES FOR DEPLOYMENT
+# ==============================================================================
+# 1. Generate encryption key:
+#    Run: java -cp target/backend-0.0.1-SNAPSHOT.jar com.securitysuite.backend.security.EncryptionService
+#    Or use: openssl rand -base64 32
+#
+# 2. Generate JWT secret (at least 64 characters):
+#    Use: openssl rand -base64 64
+#
+# 3. SSL Certificate:
+#    Generate with Let's Encrypt: certbot certonly --standalone -d yourdomain.com
+#    Convert to PKCS12: openssl pkcs12 -export -in cert.pem -inkey privkey.pem -out keystore.p12
+#
+# 4. Database Setup:
+#    - Create database: CREATE DATABASE sentrium_production;
+#    - Run migrations with Flyway or Liquibase
+#    - Create read-only user for monitoring
+#
+# 5. Monitoring Setup:
+#    - Install Prometheus: scrape /actuator/prometheus
+#    - Install Grafana: dashboard for metrics
+#    - Configure alerts for:
+#      * High error rates
+#      * Database connection failures
+#      * High response times
+#      * Disk space (video storage)
+#
+# 6. Backup Strategy:
+#    - Daily database backups
+#    - Video storage backup policy
+#    - Test restore procedures
+#
+# 7. Security Checklist:
+#    - Change all default passwords
+#    - Enable firewall (only ports 80, 443, SSH)
+#    - Set up fail2ban for SSH
+#    - Regular security updates
+#    - Enable audit logging
+#
+# 8. Performance Optimization:
+#    - Enable database query caching
+#    - Set up CDN for video delivery
+#    - Configure reverse proxy (nginx/Apache)
+#    - Enable gzip compression

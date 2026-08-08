@@ -85,15 +85,31 @@ public class VideoClipController {
     @Operation(summary = "Download video clip file",
                description = "Streams the video file for download. Returns MP4 file. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
-    public ResponseEntity<Resource> downloadClip(@PathVariable UUID id) {
+    public ResponseEntity<Resource> downloadClip(@PathVariable UUID id) throws java.io.IOException {
         VideoClipService.VideoClipDto clip = videoClipService.getClip(id);
 
+        if (clip.fileUrl() == null || clip.fileUrl().isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
+
         // Get file path from clip metadata
-        // In production, this would fetch from S3 or CDN
-        File videoFile = new File(clip.fileUrl()); // Assuming fileUrl is local path for now
+        File videoFile = new File(clip.fileUrl());
+
+        // SECURITY: Validate file path to prevent directory traversal
+        String canonicalPath = videoFile.getCanonicalPath();
+        String baseDirectory = new File(System.getProperty("user.home") + "/sentrium/videos").getCanonicalPath();
+
+        if (!canonicalPath.startsWith(baseDirectory)) {
+            throw new SecurityException("Invalid file path - potential path traversal detected");
+        }
 
         if (!videoFile.exists()) {
             return ResponseEntity.notFound().build();
+        }
+
+        // Additional security: verify file is actually a video file
+        if (!videoFile.getName().toLowerCase().matches(".*\\.(mp4|mkv|avi|mov)$")) {
+            throw new SecurityException("Invalid file type");
         }
 
         Resource resource = new FileSystemResource(videoFile);

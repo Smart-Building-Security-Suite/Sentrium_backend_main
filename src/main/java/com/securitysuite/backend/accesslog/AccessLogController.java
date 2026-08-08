@@ -34,12 +34,33 @@ public class AccessLogController {
 
     @GetMapping
     @Operation(summary = "List access logs",
-               description = "Retrieves paginated access control logs showing who accessed which zones through which devices. Optionally filter by zone. 20 records per page. Admin and Security Officer access.")
+               description = "Retrieves paginated access control logs showing who accessed which zones through which devices. Supports filtering by zone, user, device, and result. Returns most recent logs first. 20 records per page. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
-    public Page<AccessLogSummary> list(@RequestParam(required = false) UUID zoneId, @RequestParam(defaultValue = "0") int page) {
-        Pageable pageable = PageRequest.of(page, 20);
-        Page<AccessLog> result = zoneId == null ? accessLogRepository.findAll(pageable) : accessLogRepository.findByZoneId(zoneId, pageable);
-        return result.map(AccessLogSummary::from);
+    public Page<AccessLogSummary> list(
+            @RequestParam(required = false) UUID zoneId,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) UUID deviceId,
+            @RequestParam(required = false) AccessResult result,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
+        Page<AccessLog> logs;
+
+        // Apply filters based on what's provided (most recent first)
+        if (zoneId != null) {
+            logs = accessLogRepository.findByZoneIdOrderByTimestampDesc(zoneId, pageable);
+        } else if (userId != null) {
+            logs = accessLogRepository.findByUserIdOrderByTimestampDesc(userId, pageable);
+        } else if (deviceId != null) {
+            logs = accessLogRepository.findByDeviceIdOrderByTimestampDesc(deviceId, pageable);
+        } else if (result != null) {
+            logs = accessLogRepository.findByResultOrderByTimestampDesc(result, pageable);
+        } else {
+            logs = accessLogRepository.findAllByOrderByTimestampDesc(pageable);
+        }
+
+        return logs.map(AccessLogSummary::from);
     }
 
     @PostMapping

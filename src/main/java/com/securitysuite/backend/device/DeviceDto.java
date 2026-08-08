@@ -35,8 +35,8 @@ public record DeviceDto(
                 device.getName(),
                 device.getType(),
                 device.getStatus(),
-                device.getZone().getId(),
-                device.getZone().getName(),
+                device.getZone() != null ? device.getZone().getId() : null,
+                device.getZone() != null ? device.getZone().getName() : null,
                 device.getActive(),
                 device.getLastHeartbeatAt(),
 

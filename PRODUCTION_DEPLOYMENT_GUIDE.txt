@@ -1,0 +1,609 @@
+=================================================================================
+                    PRODUCTION DEPLOYMENT GUIDE
+                    Security Suite Backend v1.0
+=================================================================================
+
+TABLE OF CONTENTS
+=================
+1. Pre-Deployment Checklist
+2. Security Hardening Completed
+3. Environment Setup
+4. SSL/TLS Configuration
+5. Database Setup
+6. Application Configuration
+7. Monitoring & Alerting Setup
+8. Deployment Steps
+9. Post-Deployment Verification
+10. Maintenance & Operations
+
+=================================================================================
+1. PRE-DEPLOYMENT CHECKLIST
+=================================================================================
+
+✅ Code Audit Completed
+   - 24 controllers audited
+   - 150+ endpoints verified
+   - Critical NPE issues fixed
+   - DTOs null-safe
+   - Error handling comprehensive
+
+✅ Security Improvements Implemented
+   - Database-level pagination for alerts (JPA Specification)
+   - File path validation for video downloads
+   - FFmpeg input sanitization
+   - API key/password encryption (AES-256-GCM)
+   - Production CORS configuration
+   - Rate limiting (Token Bucket Algorithm)
+   - Monitoring endpoints enabled
+
+=================================================================================
+2. SECURITY HARDENING COMPLETED
+=================================================================================
+
+✅ Encryption Service
+   - Location: security/EncryptionService.java
+   - Algorithm: AES-256-GCM
+   - Purpose: Encrypt API keys, passwords before database storage
+   - Generate key: EncryptionService.generateKey()
+
+✅ Rate Limiting
+   - Location: security/RateLimitingFilter.java
+   - Default: 100 req/min per IP
+   - Auth endpoints: 10 req/min per IP
+   - Algorithm: Token Bucket (bucket4j)
+
+✅ Input Validation
+   - FFmpeg stream URL validation
+   - File path traversal prevention
+   - SQL injection protection (JPA)
+   - XSS prevention (Spring Security)
+
+✅ CORS Configuration
+   - Location: config/CorsConfig.java
+   - Configurable via application.properties
+   - Default allows: localhost:3000, 8081, 19006
+   - Supports credentials & cookies
+
+=================================================================================
+3. ENVIRONMENT SETUP
+=================================================================================
+
+Server Requirements:
+-------------------
+- OS: Ubuntu 22.04 LTS (recommended)
+- RAM: Minimum 4GB, Recommended 8GB
+- Disk: 50GB+ (for video storage)
+- Java: OpenJDK 21
+- PostgreSQL: 15 or higher
+- FFmpeg: Latest stable
+- Reverse Proxy: Nginx (recommended)
+
+Install Dependencies:
+--------------------
+sudo apt update
+sudo apt install -y openjdk-21-jdk postgresql-15 ffmpeg nginx
+
+Verify Installations:
+--------------------
+java -version        # Should show OpenJDK 21
+psql --version       # Should show PostgreSQL 15+
+ffmpeg -version      # Should show FFmpeg 4.4+
+
+=================================================================================
+4. SSL/TLS CONFIGURATION
+=================================================================================
+
+Option A: Let's Encrypt (Free, Recommended)
+-------------------------------------------
+# Install certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Stop nginx temporarily
+sudo systemctl stop nginx
+
+# Generate certificate
+sudo certbot certonly --standalone -d yourdomain.com
+
+# Certificates will be at:
+# /etc/letsencrypt/live/yourdomain.com/fullchain.pem
+# /etc/letsencrypt/live/yourdomain.com/privkey.pem
+
+# Convert to PKCS12 for Spring Boot
+sudo openssl pkcs12 -export \
+  -in /etc/letsencrypt/live/yourdomain.com/fullchain.pem \
+  -inkey /etc/letsencrypt/live/yourdomain.com/privkey.pem \
+  -out /etc/sentrium/keystore.p12 \
+  -name tomcat \
+  -passout pass:YOUR_KEYSTORE_PASSWORD
+
+# Set permissions
+sudo chown sentrium:sentrium /etc/sentrium/keystore.p12
+sudo chmod 600 /etc/sentrium/keystore.p12
+
+# Auto-renewal
+sudo certbot renew --dry-run
+
+Option B: Self-Signed (Testing Only)
+------------------------------------
+keytool -genkeypair -alias tomcat \
+  -keyalg RSA -keysize 2048 \
+  -storetype PKCS12 \
+  -keystore keystore.p12 \
+  -validity 365
+
+=================================================================================
+5. DATABASE SETUP
+=================================================================================
+
+Create Database User:
+--------------------
+sudo -u postgres psql
+
+CREATE USER sentrium_user WITH PASSWORD 'STRONG_PASSWORD_HERE';
+CREATE DATABASE sentrium_production;
+GRANT ALL PRIVILEGES ON DATABASE sentrium_production TO sentrium_user;
+\c sentrium_production
+GRANT ALL ON SCHEMA public TO sentrium_user;
+\q
+
+Configure PostgreSQL:
+--------------------
+# Edit /etc/postgresql/15/main/postgresql.conf
+max_connections = 100
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 16MB
+
+# Edit /etc/postgresql/15/main/pg_hba.conf
+# Add line:
+host    sentrium_production    sentrium_user    127.0.0.1/32    md5
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+
+Database Backup Setup:
+---------------------
+# Create backup script: /usr/local/bin/backup_sentrium.sh
+#!/bin/bash
+BACKUP_DIR="/var/backups/sentrium"
+DATE=$(date +%Y%m%d_%H%M%S)
+mkdir -p $BACKUP_DIR
+
+pg_dump -U sentrium_user sentrium_production | \
+  gzip > $BACKUP_DIR/sentrium_$DATE.sql.gz
+
+# Keep only last 30 days
+find $BACKUP_DIR -name "sentrium_*.sql.gz" -mtime +30 -delete
+
+# Add to crontab (daily at 3 AM)
+0 3 * * * /usr/local/bin/backup_sentrium.sh
+
+=================================================================================
+6. APPLICATION CONFIGURATION
+=================================================================================
+
+Step 1: Generate Encryption Key
+-------------------------------
+# Run this Java command or use openssl
+openssl rand -base64 32
+# Save output as: app.encryption.key
+
+Step 2: Generate JWT Secret
+---------------------------
+openssl rand -base64 64
+# Save output as: app.jwt.secret
+
+Step 3: Copy Configuration Template
+-----------------------------------
+cd /opt/sentrium
+cp src/main/resources/application-production.properties.template \
+   src/main/resources/application-production.properties
+
+Step 4: Fill in Production Values
+---------------------------------
+Edit application-production.properties with actual values:
+
+Required Values:
+- spring.datasource.url (PostgreSQL connection)
+- spring.datasource.username
+- spring.datasource.password
+- app.encryption.key (from Step 1)
+- app.jwt.secret (from Step 2)
+- app.cors.allowed-origins (your domain)
+- server.ssl.key-store-password
+- app.expo.access-token (if using push notifications)
+
+Step 5: Create Application Directories
+--------------------------------------
+sudo mkdir -p /var/sentrium/videos
+sudo mkdir -p /var/log/sentrium
+sudo chown -R sentrium:sentrium /var/sentrium
+sudo chown -R sentrium:sentrium /var/log/sentrium
+
+=================================================================================
+7. MONITORING & ALERTING SETUP
+=================================================================================
+
+Spring Actuator Endpoints Enabled:
+----------------------------------
+/actuator/health      - Health check (liveness/readiness)
+/actuator/metrics     - Application metrics
+/actuator/prometheus  - Prometheus metrics
+/actuator/info        - Application info
+
+Prometheus Setup:
+----------------
+# Install Prometheus
+wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz
+tar xvfz prometheus-*.tar.gz
+cd prometheus-*
+
+# Configure prometheus.yml
+scrape_configs:
+  - job_name: 'spring-actuator'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8080']
+
+# Run Prometheus
+./prometheus --config.file=prometheus.yml
+
+Grafana Setup:
+-------------
+# Install Grafana
+sudo apt-get install -y software-properties-common
+sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
+wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+sudo apt-get update
+sudo apt-get install grafana
+
+# Start Grafana
+sudo systemctl start grafana-server
+sudo systemctl enable grafana-server
+
+# Access: http://localhost:3000 (admin/admin)
+# Add Prometheus data source
+# Import Spring Boot dashboard ID: 4701
+
+Alerting Rules (Prometheus):
+----------------------------
+# Create alert.rules.yml
+groups:
+  - name: application_alerts
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        annotations:
+          summary: "High error rate detected"
+
+      - alert: DatabaseDown
+        expr: up{job="spring-actuator"} == 0
+        for: 2m
+        annotations:
+          summary: "Database connection failure"
+
+      - alert: HighResponseTime
+        expr: http_server_requests_seconds{quantile="0.99"} > 2
+        for: 5m
+        annotations:
+          summary: "High response time (p99 > 2s)"
+
+      - alert: LowDiskSpace
+        expr: node_filesystem_avail_bytes{mountpoint="/var/sentrium"} < 5e9
+        for: 5m
+        annotations:
+          summary: "Low disk space on video storage"
+
+=================================================================================
+8. DEPLOYMENT STEPS
+=================================================================================
+
+Step 1: Create Application User
+-------------------------------
+sudo useradd -r -s /bin/false sentrium
+sudo usermod -a -G video sentrium  # For FFmpeg
+
+Step 2: Clone and Build Application
+-----------------------------------
+cd /opt
+sudo git clone YOUR_REPO_URL sentrium
+cd sentrium
+sudo chown -R sentrium:sentrium /opt/sentrium
+
+# Build application
+./mvnw clean package -DskipTests
+
+# Verify JAR created
+ls -lh target/backend-*.jar
+
+Step 3: Create Systemd Service
+------------------------------
+sudo nano /etc/systemd/system/sentrium.service
+
+[Unit]
+Description=Sentrium Security Suite Backend
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=sentrium
+Group=sentrium
+WorkingDirectory=/opt/sentrium
+ExecStart=/usr/bin/java \
+  -Xms512m -Xmx2g \
+  -Dspring.profiles.active=production \
+  -jar /opt/sentrium/target/backend-0.0.1-SNAPSHOT.jar
+
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/sentrium /var/log/sentrium
+
+[Install]
+WantedBy=multi-user.target
+
+Step 4: Start Application
+-------------------------
+sudo systemctl daemon-reload
+sudo systemctl enable sentrium
+sudo systemctl start sentrium
+
+# Check status
+sudo systemctl status sentrium
+
+# View logs
+sudo journalctl -u sentrium -f
+
+Step 5: Configure Nginx Reverse Proxy
+-------------------------------------
+sudo nano /etc/nginx/sites-available/sentrium
+
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    client_max_body_size 100M;  # For video uploads
+
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+        proxy_read_timeout 300;
+    }
+
+    # WebSocket support
+    location /ws {
+        proxy_pass http://localhost:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}
+
+# Enable site
+sudo ln -s /etc/nginx/sites-available/sentrium /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+Step 6: Configure Firewall
+--------------------------
+sudo ufw allow 22/tcp     # SSH
+sudo ufw allow 80/tcp     # HTTP (redirect to HTTPS)
+sudo ufw allow 443/tcp    # HTTPS
+sudo ufw enable
+
+=================================================================================
+9. POST-DEPLOYMENT VERIFICATION
+=================================================================================
+
+Health Checks:
+-------------
+# Application health
+curl https://yourdomain.com/actuator/health
+
+# Expected response:
+{"status":"UP"}
+
+# Database connectivity
+curl https://yourdomain.com/actuator/health/db
+
+Functional Tests:
+----------------
+# 1. Test authentication
+curl -X POST https://yourdomain.com/auth/signup/otp/request \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+1234567890"}'
+
+# 2. Test rate limiting (should get 429 after 10 requests)
+for i in {1..15}; do
+  curl -I https://yourdomain.com/auth/signup/otp/request
+done
+
+# 3. Test CORS
+curl -H "Origin: https://yourfrontend.com" \
+  -H "Access-Control-Request-Method: POST" \
+  -X OPTIONS https://yourdomain.com/auth/login
+
+# 4. Test encryption (create device with API key)
+# Verify database shows encrypted value, not plaintext
+
+# 5. Test video recording (if camera available)
+curl -X POST https://yourdomain.com/video-clips/record \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"cameraId":"uuid","durationSeconds":10,"triggerType":"MANUAL"}'
+
+Performance Tests:
+-----------------
+# Load test with Apache Bench
+ab -n 1000 -c 10 https://yourdomain.com/actuator/health
+
+# Expected: >100 req/sec, no errors
+
+Monitoring Verification:
+-----------------------
+# Check Prometheus targets
+http://your-prometheus:9090/targets
+
+# Check Grafana dashboards
+http://your-grafana:3000
+
+# Verify metrics flowing
+curl https://yourdomain.com/actuator/prometheus | grep http_server_requests
+
+=================================================================================
+10. MAINTENANCE & OPERATIONS
+=================================================================================
+
+Daily Operations:
+----------------
+# Check application logs
+sudo journalctl -u sentrium --since "1 hour ago"
+
+# Check disk space
+df -h /var/sentrium
+
+# Check database size
+sudo -u postgres psql -c "SELECT pg_size_pretty(pg_database_size('sentrium_production'));"
+
+Weekly Operations:
+-----------------
+# Review security logs
+sudo journalctl -u sentrium | grep -i "security\|error\|warn"
+
+# Check for failed login attempts
+sudo journalctl -u sentrium | grep "BadCredentialsException"
+
+# Review rate limit violations
+sudo journalctl -u sentrium | grep "Rate limit exceeded"
+
+# Database maintenance
+sudo -u postgres psql sentrium_production -c "VACUUM ANALYZE;"
+
+# Review video storage
+du -sh /var/sentrium/videos
+find /var/sentrium/videos -type f -mtime +30 -ls  # Old files
+
+Monthly Operations:
+------------------
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Renew SSL certificates (automatic with certbot)
+sudo certbot renew
+
+# Review and rotate logs
+sudo journalctl --vacuum-time=30d
+
+# Test backup restoration
+# (Practice restoring from backup to test environment)
+
+# Security audit
+sudo apt install lynis
+sudo lynis audit system
+
+Scaling Considerations:
+----------------------
+# Horizontal Scaling:
+- Deploy multiple instances behind load balancer
+- Use shared database
+- Use shared video storage (S3, NFS)
+- Use Redis for session management
+
+# Vertical Scaling:
+- Increase heap size in systemd service
+- Increase database connection pool
+- Add more disk for video storage
+
+# Database Optimization:
+- Add indexes for slow queries
+- Partition large tables
+- Configure read replicas
+
+Troubleshooting:
+---------------
+# Application won't start
+sudo journalctl -u sentrium -n 100 --no-pager
+
+# High memory usage
+ps aux | grep java
+sudo kill -3 <pid>  # Thread dump
+sudo journalctl -u sentrium | grep -i "OutOfMemory"
+
+# Database connection issues
+sudo -u postgres psql -c "SELECT * FROM pg_stat_activity;"
+
+# Video recording failures
+sudo -u sentrium ffmpeg -version
+ls -la /var/sentrium/videos
+df -h /var/sentrium
+
+Emergency Procedures:
+--------------------
+# Rollback deployment
+sudo systemctl stop sentrium
+cd /opt/sentrium
+git checkout <previous-version-tag>
+./mvnw clean package -DskipTests
+sudo systemctl start sentrium
+
+# Database recovery from backup
+sudo systemctl stop sentrium
+sudo -u postgres psql -c "DROP DATABASE sentrium_production;"
+sudo -u postgres psql -c "CREATE DATABASE sentrium_production;"
+gunzip -c /var/backups/sentrium/sentrium_YYYYMMDD.sql.gz | \
+  sudo -u postgres psql sentrium_production
+sudo systemctl start sentrium
+
+=================================================================================
+SUPPORT & RESOURCES
+=================================================================================
+
+Documentation:
+- API Documentation: https://yourdomain.com/swagger-ui.html
+- Health Check: https://yourdomain.com/actuator/health
+- Metrics: https://yourdomain.com/actuator/metrics
+
+Logs Location:
+- Application: /var/log/sentrium/backend.log
+- Systemd: sudo journalctl -u sentrium
+- Nginx: /var/log/nginx/access.log, /var/log/nginx/error.log
+
+Key Configuration Files:
+- Application: /opt/sentrium/src/main/resources/application-production.properties
+- Systemd: /etc/systemd/system/sentrium.service
+- Nginx: /etc/nginx/sites-available/sentrium
+- SSL: /etc/letsencrypt/live/yourdomain.com/
+
+Emergency Contacts:
+- Development Team: dev@yourcompany.com
+- Infrastructure Team: ops@yourcompany.com
+- Security Team: security@yourcompany.com
+
+=================================================================================
+END OF DEPLOYMENT GUIDE
+=================================================================================

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface AlertRepository extends JpaRepository<Alert, UUID> {
+public interface AlertRepository extends JpaRepository<Alert, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Alert> {
     List<Alert> findByStatusAndSeverity(AlertStatus status, AlertSeverity severity);
     List<Alert> findByStatus(AlertStatus status);
     List<Alert> findBySeverity(AlertSeverity severity);
@@ -26,6 +26,13 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
     @Query("select distinct a.zone from Alert a where function('date', a.createdAt) = :date")
     List<Zone> zonesWithActivityToday(@Param("date") LocalDate date);
 
-    @Query("select a from Alert a where a.status = 'OPEN' order by a.createdAt desc")
+    @Query("select a from Alert a where a.status in ('OPEN', 'ACKNOWLEDGED') order by a.createdAt desc")
     List<Alert> findRecentOpenAlerts(org.springframework.data.domain.Pageable pageable);
+
+    // Additional filtering methods
+    List<Alert> findByZoneId(UUID zoneId);
+    List<Alert> findByDeviceId(UUID deviceId);
+    List<Alert> findByZoneIdAndStatus(UUID zoneId, AlertStatus status);
+    List<Alert> findByZoneIdAndSeverity(UUID zoneId, AlertSeverity severity);
+    List<Alert> findByDeviceIdAndStatus(UUID deviceId, AlertStatus status);
 }

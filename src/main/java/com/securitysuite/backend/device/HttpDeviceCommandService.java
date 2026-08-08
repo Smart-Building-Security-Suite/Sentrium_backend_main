@@ -32,18 +32,21 @@ public class HttpDeviceCommandService {
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final com.securitysuite.backend.security.EncryptionService encryptionService;
 
     public HttpDeviceCommandService(DeviceRepository deviceRepository,
                                    DeviceCommandRepository commandRepository,
                                    UserRepository userRepository,
                                    PasswordEncoder passwordEncoder,
                                    ObjectMapper objectMapper,
-                                   RestTemplateBuilder restTemplateBuilder) {
+                                   RestTemplateBuilder restTemplateBuilder,
+                                   com.securitysuite.backend.security.EncryptionService encryptionService) {
         this.deviceRepository = deviceRepository;
         this.commandRepository = commandRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.objectMapper = objectMapper;
+        this.encryptionService = encryptionService;
         this.restTemplate = restTemplateBuilder
                 .setConnectTimeout(Duration.ofSeconds(5))
                 .setReadTimeout(Duration.ofSeconds(10))
@@ -88,7 +91,7 @@ public class HttpDeviceCommandService {
             );
         }
 
-        // Get requesting user
+        // Get requesting user (may be null if authentication context is not available)
         User requestedBy = getCurrentUser();
 
         // Create command record
@@ -107,8 +110,9 @@ public class HttpDeviceCommandService {
 
         try {
             command = commandRepository.save(command);
+            log.debug("Command record persisted: id={}, type={}, device={}", command.getId(), commandType, deviceId);
         } catch (Exception e) {
-            log.error("Failed to persist command record for device {}: {}", deviceId, e.getMessage());
+            log.error("Failed to persist command record for device {}: {}", deviceId, e.getMessage(), e);
             return DeviceCommandResponse.error("Failed to record command: " + e.getMessage());
         }
 
@@ -210,15 +214,30 @@ public class HttpDeviceCommandService {
     }
 
     private String decryptApiKey(String encrypted) {
-        // TODO: Implement proper encryption/decryption
-        // For now, assume it's stored in plain text (NOT SECURE)
-        // In production, use AES encryption with a secret key
-        return encrypted;
+        if (encrypted == null || encrypted.isBlank()) {
+            return encrypted;
+        }
+        try {
+            return encryptionService.decrypt(encrypted);
+        } catch (Exception e) {
+            log.error("Failed to decrypt API key", e);
+            return null;
+        }
     }
 
     private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByPhoneNumber(username).orElse(null);
+        try {
+            if (SecurityContextHolder.getContext() != null
+                && SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
+
+                String username = SecurityContextHolder.getContext().getAuthentication().getName();
+                return userRepository.findByPhoneNumber(username).orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get current user from security context: {}", e.getMessage());
+        }
+        return null;
     }
 
     private DeviceCommandDto toDto(DeviceCommand command) {

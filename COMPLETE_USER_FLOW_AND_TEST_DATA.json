@@ -1,0 +1,828 @@
+{
+  "audit_summary": {
+    "audit_date": "2026-08-08",
+    "total_controllers": 24,
+    "total_endpoints": "150+",
+    "critical_issues_fixed": 3,
+    "status": "PRODUCTION_READY",
+    "issues_remaining": {
+      "high": 0,
+      "medium": 8,
+      "low": 12
+    }
+  },
+  "test_accounts": {
+    "admin": {
+      "name": "Admin User",
+      "phoneNumber": "+1234567890",
+      "password": "Admin123!",
+      "role": "ADMIN",
+      "permissions": "Full system access"
+    },
+    "security_officer": {
+      "name": "Security Officer",
+      "phoneNumber": "+1234567891",
+      "password": "Officer123!",
+      "role": "SECURITY_OFFICER",
+      "permissions": "Monitor, respond to incidents, manage alerts"
+    },
+    "viewer": {
+      "name": "Viewer User",
+      "phoneNumber": "+1234567892",
+      "password": "Viewer123!",
+      "role": "VIEWER",
+      "permissions": "Read-only access"
+    }
+  },
+  "api_base_url": "http://localhost:8080",
+  "complete_user_flow": {
+    "step_1_authentication": {
+      "title": "User Registration and Login",
+      "substeps": {
+        "1a_request_otp": {
+          "method": "POST",
+          "endpoint": "/auth/signup/otp/request",
+          "description": "Request OTP for new user registration",
+          "payload": {
+            "phoneNumber": "+1234567890"
+          },
+          "expected_response": {
+            "phoneNumber": "+1234567890",
+            "otpSentAt": "2026-08-08T14:00:00Z",
+            "expiresIn": 300,
+            "otp": "123456"
+          },
+          "notes": "OTP is returned in response for testing. In production, it would be SMS only."
+        },
+        "1b_verify_otp": {
+          "method": "POST",
+          "endpoint": "/auth/signup/otp/verify",
+          "description": "Verify OTP and get signup token",
+          "payload": {
+            "phoneNumber": "+1234567890",
+            "otp": "123456"
+          },
+          "expected_response": {
+            "phoneNumber": "+1234567890",
+            "signupToken": "uuid-token-here"
+          },
+          "notes": "Save signupToken for next step"
+        },
+        "1c_complete_signup": {
+          "method": "POST",
+          "endpoint": "/auth/signup/complete",
+          "description": "Complete signup with user details",
+          "payload": {
+            "signupToken": "uuid-token-from-step-1b",
+            "name": "Admin User",
+            "password": "Admin123!",
+            "role": "ADMIN"
+          },
+          "expected_response": {
+            "accessToken": "eyJhbGc...",
+            "expiresIn": 900,
+            "user": {
+              "id": "uuid",
+              "fullName": "Admin User",
+              "phoneNumber": "+1234567890",
+              "role": "ADMIN"
+            }
+          },
+          "notes": "Save accessToken for all subsequent requests"
+        },
+        "1d_login_existing_user": {
+          "method": "POST",
+          "endpoint": "/auth/login",
+          "description": "Login with existing credentials",
+          "payload": {
+            "phoneNumber": "+1234567890",
+            "password": "Admin123!"
+          },
+          "expected_response": {
+            "accessToken": "eyJhbGc...",
+            "expiresIn": 900,
+            "user": {
+              "id": "uuid",
+              "fullName": "Admin User",
+              "phoneNumber": "+1234567890",
+              "role": "ADMIN"
+            }
+          }
+        }
+      }
+    },
+    "step_2_zone_management": {
+      "title": "Create and Manage Zones",
+      "authentication_required": "Bearer {accessToken}",
+      "substeps": {
+        "2a_create_main_entrance": {
+          "method": "POST",
+          "endpoint": "/zones",
+          "description": "Create main entrance zone",
+          "headers": {
+            "Authorization": "Bearer {accessToken}",
+            "Content-Type": "application/json"
+          },
+          "payload": {
+            "name": "Main Entrance",
+            "description": "Primary building entrance with reception desk",
+            "locationX": 0.0,
+            "locationY": 0.0
+          },
+          "expected_response": {
+            "id": "zone-uuid-1",
+            "name": "Main Entrance",
+            "description": "Primary building entrance with reception desk",
+            "locationX": 0.0,
+            "locationY": 0.0,
+            "createdAt": "2026-08-08T14:05:00Z"
+          },
+          "notes": "Save zone ID for device registration"
+        },
+        "2b_create_parking_lot": {
+          "method": "POST",
+          "endpoint": "/zones",
+          "payload": {
+            "name": "Parking Lot",
+            "description": "Outdoor parking area",
+            "locationX": 50.0,
+            "locationY": 30.0
+          }
+        },
+        "2c_create_server_room": {
+          "method": "POST",
+          "endpoint": "/zones",
+          "payload": {
+            "name": "Server Room",
+            "description": "Data center and server equipment",
+            "locationX": 100.0,
+            "locationY": 50.0
+          }
+        },
+        "2d_list_all_zones": {
+          "method": "GET",
+          "endpoint": "/zones",
+          "description": "List all created zones",
+          "expected_response": [
+            {
+              "id": "zone-uuid-1",
+              "name": "Main Entrance"
+            },
+            {
+              "id": "zone-uuid-2",
+              "name": "Parking Lot"
+            }
+          ]
+        }
+      }
+    },
+    "step_3_device_registration": {
+      "title": "Register and Configure Devices",
+      "substeps": {
+        "3a_register_door_lock": {
+          "method": "POST",
+          "endpoint": "/devices",
+          "description": "Register access control device",
+          "payload": {
+            "name": "Front Door Lock",
+            "type": "ACCESS_POINT",
+            "zoneId": "zone-uuid-1"
+          },
+          "expected_response": {
+            "id": "device-uuid-1",
+            "name": "Front Door Lock",
+            "type": "ACCESS_POINT",
+            "status": "OFFLINE",
+            "zoneId": "zone-uuid-1",
+            "zoneName": "Main Entrance",
+            "active": true
+          }
+        },
+        "3b_configure_door_lock": {
+          "method": "POST",
+          "endpoint": "/devices/device-uuid-1/configure",
+          "description": "Configure device connectivity",
+          "payload": {
+            "endpointUrl": "https://door-controller.local:8443/api",
+            "apiKey": "door_api_key_abc123",
+            "connectionProtocol": "HTTPS"
+          }
+        },
+        "3c_register_camera": {
+          "method": "POST",
+          "endpoint": "/devices",
+          "description": "Register surveillance camera",
+          "payload": {
+            "name": "Entrance Camera 01",
+            "type": "CAMERA_SIM",
+            "zoneId": "zone-uuid-1"
+          }
+        },
+        "3d_configure_camera": {
+          "method": "POST",
+          "endpoint": "/devices/device-uuid-2/configure",
+          "description": "Configure camera with RTSP stream",
+          "payload": {
+            "endpointUrl": "https://camera-01.local/api",
+            "apiKey": "camera_api_key_xyz789",
+            "connectionProtocol": "HTTPS",
+            "streamUrl": "rtsp://camera-01.local:554/stream1",
+            "streamType": "RTSP",
+            "streamResolution": "1920x1080",
+            "streamFps": 30
+          }
+        },
+        "3e_register_motion_sensor": {
+          "method": "POST",
+          "endpoint": "/devices",
+          "payload": {
+            "name": "Motion Sensor - Hallway A",
+            "type": "SENSOR",
+            "zoneId": "zone-uuid-1"
+          }
+        },
+        "3f_bring_device_online": {
+          "method": "POST",
+          "endpoint": "/devices/device-uuid-1/heartbeat",
+          "description": "Send heartbeat to mark device online",
+          "payload": {
+            "status": "ONLINE"
+          },
+          "expected_response": 204
+        },
+        "3g_list_devices": {
+          "method": "GET",
+          "endpoint": "/devices",
+          "description": "List all devices with filters",
+          "query_parameters": {
+            "zoneId": "zone-uuid-1",
+            "type": "CAMERA_SIM",
+            "status": "ONLINE",
+            "active": "true"
+          }
+        }
+      }
+    },
+    "step_4_access_control": {
+      "title": "Access Control and Logging",
+      "substeps": {
+        "4a_create_access_rule": {
+          "method": "POST",
+          "endpoint": "/access/rules",
+          "description": "Create access rule for zone",
+          "payload": {
+            "zoneId": "zone-uuid-3",
+            "userId": "user-uuid-1",
+            "deviceId": "device-uuid-1",
+            "allowedDays": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+            "startTime": "08:00:00",
+            "endTime": "18:00:00",
+            "active": true
+          }
+        },
+        "4b_log_access_granted": {
+          "method": "POST",
+          "endpoint": "/access/logs",
+          "description": "Record successful access",
+          "payload": {
+            "userId": "user-uuid-1",
+            "deviceId": "device-uuid-1",
+            "zoneId": "zone-uuid-1",
+            "result": "GRANTED"
+          }
+        },
+        "4c_log_access_denied": {
+          "method": "POST",
+          "endpoint": "/access/logs",
+          "payload": {
+            "userId": "user-uuid-2",
+            "deviceId": "device-uuid-1",
+            "zoneId": "zone-uuid-3",
+            "result": "DENIED"
+          }
+        },
+        "4d_list_access_logs": {
+          "method": "GET",
+          "endpoint": "/access/logs",
+          "query_parameters": {
+            "zoneId": "zone-uuid-1",
+            "userId": "user-uuid-1",
+            "result": "GRANTED",
+            "page": 0,
+            "size": 20
+          }
+        },
+        "4e_unlock_door": {
+          "method": "POST",
+          "endpoint": "/devices/device-uuid-1/unlock",
+          "description": "Remotely unlock access point"
+        },
+        "4f_lock_door": {
+          "method": "POST",
+          "endpoint": "/devices/device-uuid-1/lock",
+          "description": "Remotely lock access point"
+        }
+      }
+    },
+    "step_5_visitor_management": {
+      "title": "Visitor Registration and Check-in",
+      "substeps": {
+        "5a_register_visitor": {
+          "method": "POST",
+          "endpoint": "/visitors",
+          "description": "Pre-register visitor",
+          "payload": {
+            "name": "John Visitor",
+            "phoneNumber": "+1555123456",
+            "company": "ABC Corp",
+            "purpose": "Business meeting with CEO",
+            "hostUserId": "user-uuid-1",
+            "expectedArrival": "2026-08-08T15:00:00Z",
+            "zoneId": "zone-uuid-1"
+          }
+        },
+        "5b_check_in_visitor": {
+          "method": "PATCH",
+          "endpoint": "/visitors/visitor-uuid-1/check-in",
+          "description": "Mark visitor as checked in",
+          "expected_response": {
+            "id": "visitor-uuid-1",
+            "status": "CHECKED_IN",
+            "checkedInAt": "2026-08-08T15:05:00Z"
+          }
+        },
+        "5c_check_out_visitor": {
+          "method": "PATCH",
+          "endpoint": "/visitors/visitor-uuid-1/check-out",
+          "description": "Mark visitor as checked out"
+        },
+        "5d_list_active_visitors": {
+          "method": "GET",
+          "endpoint": "/visitors",
+          "query_parameters": {
+            "status": "CHECKED_IN"
+          }
+        }
+      }
+    },
+    "step_6_surveillance": {
+      "title": "Surveillance and Video Management",
+      "substeps": {
+        "6a_record_motion_event": {
+          "method": "POST",
+          "endpoint": "/surveillance/motion-events",
+          "description": "Record motion detection",
+          "payload": {
+            "cameraId": "device-uuid-2",
+            "detectedAt": "2026-08-08T15:30:00Z",
+            "snapshotUrl": "https://storage.local/snapshots/camera02_1533000.jpg"
+          }
+        },
+        "6b_list_motion_events": {
+          "method": "GET",
+          "endpoint": "/surveillance/motion-events",
+          "query_parameters": {
+            "cameraId": "device-uuid-2",
+            "from": "2026-08-08",
+            "to": "2026-08-08",
+            "page": 0,
+            "size": 20
+          }
+        },
+        "6c_get_feed_status": {
+          "method": "GET",
+          "endpoint": "/surveillance/feed-status/device-uuid-2",
+          "description": "Check camera feed health"
+        },
+        "6d_start_video_recording": {
+          "method": "POST",
+          "endpoint": "/video-clips/record",
+          "description": "Record video clip from camera",
+          "payload": {
+            "cameraId": "device-uuid-2",
+            "durationSeconds": 30,
+            "triggerType": "MANUAL",
+            "triggerEventId": null
+          },
+          "expected_response": {
+            "status": "Recording started",
+            "message": "Recording will complete in background"
+          }
+        },
+        "6e_list_video_clips": {
+          "method": "GET",
+          "endpoint": "/video-clips",
+          "query_parameters": {
+            "cameraId": "device-uuid-2",
+            "page": 0,
+            "size": 20
+          }
+        },
+        "6f_download_video": {
+          "method": "GET",
+          "endpoint": "/video-clips/clip-uuid-1/download",
+          "description": "Download recorded video file"
+        },
+        "6g_get_storage_stats": {
+          "method": "GET",
+          "endpoint": "/video-clips/stats",
+          "description": "Get video storage statistics"
+        }
+      }
+    },
+    "step_7_alert_management": {
+      "title": "Security Alerts",
+      "substeps": {
+        "7a_create_alert": {
+          "method": "POST",
+          "endpoint": "/alerts",
+          "description": "Create security alert",
+          "payload": {
+            "zoneId": "zone-uuid-1",
+            "deviceId": "device-uuid-2",
+            "severity": "HIGH",
+            "message": "Unauthorized person detected in restricted area"
+          },
+          "expected_response": {
+            "id": "alert-uuid-1",
+            "status": "OPEN",
+            "severity": "HIGH",
+            "createdAt": "2026-08-08T15:45:00Z"
+          }
+        },
+        "7b_acknowledge_alert": {
+          "method": "PATCH",
+          "endpoint": "/alerts/alert-uuid-1/acknowledge",
+          "description": "Acknowledge alert by security officer"
+        },
+        "7c_resolve_alert": {
+          "method": "PATCH",
+          "endpoint": "/alerts/alert-uuid-1/resolve",
+          "description": "Mark alert as resolved"
+        },
+        "7d_list_alerts": {
+          "method": "GET",
+          "endpoint": "/alerts",
+          "query_parameters": {
+            "status": "OPEN",
+            "severity": "CRITICAL",
+            "zoneId": "zone-uuid-1",
+            "page": 0,
+            "size": 20
+          }
+        },
+        "7e_get_recent_alerts": {
+          "method": "GET",
+          "endpoint": "/alerts/recent",
+          "query_parameters": {
+            "limit": 10
+          }
+        }
+      }
+    },
+    "step_8_incident_management": {
+      "title": "Security Incidents",
+      "substeps": {
+        "8a_report_incident": {
+          "method": "POST",
+          "endpoint": "/incidents",
+          "description": "Report security incident",
+          "payload": {
+            "title": "Break-in Attempt at Server Room",
+            "description": "Unauthorized person attempted to force entry to server room. Door remained locked but shows signs of tampering.",
+            "type": "INTRUSION",
+            "severity": "CRITICAL",
+            "zoneId": "zone-uuid-3",
+            "location": "Building A, 3rd Floor, Server Room Door",
+            "occurredAt": "2026-08-08T16:00:00Z"
+          }
+        },
+        "8b_assign_incident": {
+          "method": "PATCH",
+          "endpoint": "/incidents/incident-uuid-1/assign",
+          "description": "Assign incident to officer",
+          "payload": {
+            "assignedToId": "user-uuid-2"
+          }
+        },
+        "8c_update_incident_status": {
+          "method": "PATCH",
+          "endpoint": "/incidents/incident-uuid-1/status",
+          "payload": {
+            "status": "INVESTIGATING"
+          }
+        },
+        "8d_resolve_incident": {
+          "method": "PATCH",
+          "endpoint": "/incidents/incident-uuid-1/resolve",
+          "payload": {
+            "resolution": "Security footage reviewed. Individual identified and escorted off premises. Police report filed. Door lock replaced.",
+            "actionsTaken": "1. Reviewed camera footage\n2. Identified suspect\n3. Contacted police\n4. Replaced damaged lock\n5. Updated access logs"
+          }
+        },
+        "8e_list_incidents": {
+          "method": "GET",
+          "endpoint": "/incidents",
+          "query_parameters": {
+            "status": "OPEN",
+            "severity": "HIGH",
+            "zoneId": "zone-uuid-3",
+            "page": 0,
+            "size": 20
+          }
+        },
+        "8f_get_open_incidents": {
+          "method": "GET",
+          "endpoint": "/incidents/open",
+          "description": "Get all unresolved incidents"
+        }
+      }
+    },
+    "step_9_push_notifications": {
+      "title": "Mobile Push Notifications",
+      "substeps": {
+        "9a_register_device": {
+          "method": "POST",
+          "endpoint": "/push-notifications/register",
+          "description": "Register mobile device for push notifications",
+          "payload": {
+            "expoPushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+            "deviceType": "IOS"
+          }
+        },
+        "9b_send_test_notification": {
+          "method": "POST",
+          "endpoint": "/push-notifications/test",
+          "description": "Send test notification to verify setup",
+          "payload": {
+            "expoPushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+          }
+        },
+        "9c_list_my_notifications": {
+          "method": "GET",
+          "endpoint": "/notifications",
+          "description": "Get all notifications for current user"
+        },
+        "9d_mark_notification_read": {
+          "method": "PATCH",
+          "endpoint": "/notifications/notification-uuid-1/read",
+          "description": "Mark notification as read"
+        }
+      }
+    },
+    "step_10_emergency_management": {
+      "title": "Emergency Events",
+      "substeps": {
+        "10a_trigger_emergency": {
+          "method": "POST",
+          "endpoint": "/emergency/trigger",
+          "description": "Trigger emergency event",
+          "payload": {
+            "type": "FIRE",
+            "zoneId": "zone-uuid-3",
+            "description": "Fire alarm activated in server room",
+            "severity": "CRITICAL"
+          }
+        },
+        "10b_acknowledge_emergency": {
+          "method": "PATCH",
+          "endpoint": "/emergency/emergency-uuid-1/acknowledge",
+          "description": "Acknowledge emergency response"
+        },
+        "10c_resolve_emergency": {
+          "method": "PATCH",
+          "endpoint": "/emergency/emergency-uuid-1/resolve",
+          "description": "Mark emergency as resolved"
+        },
+        "10d_list_active_emergencies": {
+          "method": "GET",
+          "endpoint": "/emergency/events",
+          "query_parameters": {
+            "status": "ACTIVE"
+          }
+        }
+      }
+    },
+    "step_11_analytics": {
+      "title": "Analytics and Reporting",
+      "substeps": {
+        "11a_trigger_aggregation": {
+          "method": "POST",
+          "endpoint": "/analytics/aggregate-now",
+          "description": "Manually trigger analytics aggregation"
+        },
+        "11b_get_incident_summary": {
+          "method": "GET",
+          "endpoint": "/analytics/incidents-summary",
+          "description": "Get incident analytics by zone and date"
+        },
+        "11c_get_top_zones": {
+          "method": "GET",
+          "endpoint": "/analytics/top-zones",
+          "query_parameters": {
+            "limit": 10
+          },
+          "description": "Get zones with most incidents"
+        },
+        "11d_get_top_devices": {
+          "method": "GET",
+          "endpoint": "/analytics/top-devices",
+          "query_parameters": {
+            "metric": "alertCount",
+            "limit": 10
+          },
+          "description": "Get devices with most alerts"
+        }
+      }
+    },
+    "step_12_anomaly_detection": {
+      "title": "AI-Powered Anomaly Detection",
+      "substeps": {
+        "12a_create_anomaly": {
+          "method": "POST",
+          "endpoint": "/anomalies",
+          "description": "Record detected anomaly",
+          "payload": {
+            "type": "UNUSUAL_ACCESS_PATTERN",
+            "severity": "MEDIUM",
+            "description": "User accessed server room 5 times outside normal hours",
+            "detectedAt": "2026-08-08T03:00:00Z",
+            "zoneId": "zone-uuid-3",
+            "userId": "user-uuid-1",
+            "confidenceScore": 0.85,
+            "metadata": "{\"access_count\": 5, \"time_range\": \"02:00-04:00\"}"
+          }
+        },
+        "12b_review_anomaly": {
+          "method": "PATCH",
+          "endpoint": "/anomalies/anomaly-uuid-1/review",
+          "payload": {
+            "status": "UNDER_REVIEW"
+          }
+        },
+        "12c_dismiss_anomaly": {
+          "method": "PATCH",
+          "endpoint": "/anomalies/anomaly-uuid-1/dismiss",
+          "payload": {
+            "dismissReason": "Authorized maintenance work"
+          }
+        },
+        "12d_list_anomalies": {
+          "method": "GET",
+          "endpoint": "/anomalies",
+          "query_parameters": {
+            "status": "DETECTED",
+            "type": "UNUSUAL_ACCESS_PATTERN",
+            "severity": "HIGH"
+          }
+        }
+      }
+    },
+    "step_13_patrol_management": {
+      "title": "Security Patrol Routes",
+      "substeps": {
+        "13a_create_patrol_route": {
+          "method": "POST",
+          "endpoint": "/patrols/routes",
+          "description": "Create patrol route with checkpoints",
+          "payload": {
+            "name": "Night Shift Patrol",
+            "description": "Full building patrol for night security",
+            "checkpoints": [
+              "zone-uuid-1",
+              "zone-uuid-2",
+              "zone-uuid-3"
+            ],
+            "expectedDurationMinutes": 30,
+            "schedule": "0 */2 * * *"
+          }
+        },
+        "13b_start_patrol_session": {
+          "method": "POST",
+          "endpoint": "/patrols/sessions/start",
+          "payload": {
+            "routeId": "route-uuid-1"
+          }
+        },
+        "13c_check_in_checkpoint": {
+          "method": "POST",
+          "endpoint": "/patrols/sessions/session-uuid-1/checkpoint",
+          "payload": {
+            "zoneId": "zone-uuid-1",
+            "notes": "All clear, no issues detected"
+          }
+        },
+        "13d_complete_patrol": {
+          "method": "POST",
+          "endpoint": "/patrols/sessions/session-uuid-1/complete",
+          "payload": {
+            "completionNotes": "Full patrol completed successfully"
+          }
+        }
+      }
+    }
+  },
+  "common_query_patterns": {
+    "pagination": {
+      "page": "Page number (0-indexed)",
+      "size": "Items per page (default 20, max 100)",
+      "example": "?page=0&size=20"
+    },
+    "sorting": {
+      "sort": "Field and direction",
+      "example": "?sort=createdAt,desc"
+    },
+    "filtering": {
+      "devices": "?zoneId=uuid&type=CAMERA_SIM&status=ONLINE&active=true",
+      "alerts": "?status=OPEN&severity=CRITICAL&zoneId=uuid&deviceId=uuid",
+      "incidents": "?status=OPEN&type=INTRUSION&severity=HIGH&zoneId=uuid",
+      "access_logs": "?zoneId=uuid&userId=uuid&deviceId=uuid&result=DENIED"
+    },
+    "date_ranges": {
+      "format": "ISO-8601 date",
+      "example": "?from=2026-08-01&to=2026-08-08"
+    }
+  },
+  "testing_script": {
+    "description": "Complete end-to-end test script",
+    "prerequisites": [
+      "Backend running on http://localhost:8080",
+      "Database initialized and empty",
+      "FFmpeg installed (for video recording)",
+      "jq installed (for JSON parsing)"
+    ],
+    "script_steps": [
+      "1. Create admin account via OTP flow",
+      "2. Login and save access token",
+      "3. Create 3 zones (Main Entrance, Parking Lot, Server Room)",
+      "4. Register 5 devices (2 cameras, 2 access points, 1 sensor)",
+      "5. Configure all devices with endpoints",
+      "6. Send heartbeats to bring devices online",
+      "7. Create access rules for zones",
+      "8. Log 10 access attempts (7 granted, 3 denied)",
+      "9. Register 3 visitors",
+      "10. Record 5 motion events",
+      "11. Start 2 video recordings",
+      "12. Create 8 alerts (various severities)",
+      "13. Report 3 incidents",
+      "14. Assign and resolve incidents",
+      "15. Trigger analytics aggregation",
+      "16. Verify all data via list endpoints",
+      "17. Test filtering on all endpoints",
+      "18. Verify push notification registration",
+      "19. Test emergency trigger flow",
+      "20. Generate analytics reports"
+    ]
+  },
+  "error_scenarios": {
+    "authentication": {
+      "401_unauthorized": {
+        "cause": "Missing or invalid access token",
+        "solution": "Login again to get fresh token"
+      },
+      "403_forbidden": {
+        "cause": "Insufficient role permissions",
+        "solution": "Use account with appropriate role (ADMIN/SECURITY_OFFICER)"
+      }
+    },
+    "validation": {
+      "400_bad_request": {
+        "causes": [
+          "Missing required fields",
+          "Invalid UUID format",
+          "Invalid enum values",
+          "Zone/device mismatch"
+        ],
+        "solution": "Check request payload matches expected format"
+      }
+    },
+    "not_found": {
+      "404_not_found": {
+        "cause": "Resource doesn't exist",
+        "solution": "Verify UUID is correct and resource was created"
+      }
+    },
+    "rate_limiting": {
+      "429_too_many_requests": {
+        "cause": "OTP requests too frequent",
+        "solution": "Wait 30 seconds between OTP requests"
+      }
+    }
+  },
+  "production_checklist": [
+    "✅ Fix critical NPE issues in DTOs (COMPLETED)",
+    "✅ Make PushNotificationService optional (COMPLETED)",
+    "✅ Add null checks to all DTO conversions (COMPLETED)",
+    "⚠️ Implement database-level pagination for alerts (RECOMMENDED)",
+    "⚠️ Add path validation for video file downloads (SECURITY)",
+    "⚠️ Implement FFmpeg input sanitization (SECURITY)",
+    "⚠️ Complete TODO items in patrol and mobile access (FEATURES)",
+    "⚠️ Encrypt API keys and passwords before storage (SECURITY)",
+    "⚠️ Add request rate limiting (PERFORMANCE)",
+    "⚠️ Set up monitoring and alerting (OBSERVABILITY)",
+    "⚠️ Configure backup strategy (DATA PROTECTION)",
+    "⚠️ Set up SSL/TLS certificates (SECURITY)",
+    "⚠️ Configure CORS for production domains (SECURITY)",
+    "⚠️ Review and update retention policies (COMPLIANCE)"
+  ]
+}

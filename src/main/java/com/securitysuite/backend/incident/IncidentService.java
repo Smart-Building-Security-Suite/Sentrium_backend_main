@@ -25,17 +25,25 @@ public class IncidentService {
     private final IncidentRepository incidentRepository;
     private final UserRepository userRepository;
     private final ZoneRepository zoneRepository;
-    private final PushNotificationService pushNotificationService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PushNotificationService pushNotificationService;
 
     public Page<IncidentDto> listAll(IncidentStatus status, IncidentType type, IncidentSeverity severity,
                                      UUID zoneId, UUID assignedToId, Pageable pageable) {
-        if (status != null) return incidentRepository.findByStatus(status, pageable).map(IncidentDto::from);
-        if (type != null) return incidentRepository.findByType(type, pageable).map(IncidentDto::from);
-        if (severity != null) return incidentRepository.findBySeverity(severity, pageable).map(IncidentDto::from);
-        if (zoneId != null) return incidentRepository.findByZoneId(zoneId, pageable).map(IncidentDto::from);
-        if (assignedToId != null) return incidentRepository.findByAssignedToId(assignedToId, pageable).map(IncidentDto::from);
+        try {
+            if (status != null) return incidentRepository.findByStatus(status, pageable).map(IncidentDto::from);
+            if (type != null) return incidentRepository.findByType(type, pageable).map(IncidentDto::from);
+            if (severity != null) return incidentRepository.findBySeverity(severity, pageable).map(IncidentDto::from);
+            if (zoneId != null) return incidentRepository.findByZoneId(zoneId, pageable).map(IncidentDto::from);
+            if (assignedToId != null) return incidentRepository.findByAssignedToId(assignedToId, pageable).map(IncidentDto::from);
 
-        return incidentRepository.findAll(pageable).map(IncidentDto::from);
+            return incidentRepository.findAll(pageable).map(IncidentDto::from);
+        } catch (Exception e) {
+            log.error("Error listing incidents: status={}, type={}, severity={}, zoneId={}, assignedToId={}",
+                     status, type, severity, zoneId, assignedToId, e);
+            throw new RuntimeException("Failed to list incidents: " + e.getMessage(), e);
+        }
     }
 
     @Transactional

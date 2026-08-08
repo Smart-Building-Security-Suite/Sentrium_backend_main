@@ -187,15 +187,17 @@ public class AuthService {
 
     @Transactional
     public OtpRequestResponse requestPasswordResetOtp(String phoneNumber) {
+        Instant now = Instant.now();
+
         // 1. Guard: phone must have an existing account
         // SECURITY: Return success even if account doesn't exist to prevent user enumeration
+        // BUT still generate and return a fake OTP for development/testing consistency
         if (!userRepository.existsByPhoneNumber(phoneNumber)) {
-            // Return fake success response with no OTP actually sent
-            log.info("Password reset requested for non-existent phone: {}", phoneNumber);
-            return OtpRequestResponse.of(phoneNumber, Instant.now(), null);
+            // Generate fake OTP for consistent response structure (dev/test only)
+            String fakeOtp = String.format("%06d", (int) (Math.random() * 1_000_000));
+            log.info("Password reset requested for non-existent phone: {} (fake OTP: {})", phoneNumber, fakeOtp);
+            return OtpRequestResponse.of(phoneNumber, now, fakeOtp);
         }
-
-        Instant now = Instant.now();
 
         // 2. Rate-limit: reject if a valid OTP was created within the last 30 seconds
         otpRepository.findTopByPhoneNumberOrderByCreatedAtDesc(phoneNumber)
