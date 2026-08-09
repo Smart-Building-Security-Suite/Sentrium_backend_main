@@ -4,9 +4,10 @@ import com.securitysuite.backend.alert.Alert;
 import com.securitysuite.backend.notification.AlertCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 
 import java.time.Instant;
 
@@ -17,7 +18,7 @@ public class WebSocketAlertPublisher {
 
     private final SimpMessagingTemplate messagingTemplate;
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleAlertCreated(AlertCreatedEvent event) {
         Alert alert = event.alert();
         AlertWebSocketMessage message = new AlertWebSocketMessage(

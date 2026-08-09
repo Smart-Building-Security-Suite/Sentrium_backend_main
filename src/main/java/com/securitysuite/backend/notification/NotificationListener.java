@@ -40,17 +40,17 @@ public class NotificationListener {
         log.info("Dispatching notifications for alert {} to {} security personnel", alert.getId(), recipients.size());
         for (User user : recipients) {
             saveNotification(user, alert, NotificationChannel.IN_APP);
-            if (alert.getSeverity() == AlertSeverity.CRITICAL) {
+            if (alert.getSeverity() == AlertSeverity.CRITICAL && user.getEmail() != null && !user.getEmail().isBlank()) {
                 saveNotification(user, alert, NotificationChannel.EMAIL);
                 try {
                     SimpleMailMessage message = new SimpleMailMessage();
                     message.setFrom(fromAddress);
-                    message.setTo(user.getPhoneNumber());
+                    message.setTo(user.getEmail());
                     message.setSubject("[CRITICAL] Security alert: " + alert.getMessage());
                     message.setText("Critical security alert in zone " + alert.getZone().getName() + ". Message: " + alert.getMessage());
                     mailSender.send(message);
                 } catch (Exception ex) {
-                    log.warn("Email send failed for user {} on alert {}: {}", user.getPhoneNumber(), alert.getId(), ex.getMessage());
+                    log.warn("Email send failed for user {} on alert {}: {}", user.getEmail(), alert.getId(), ex.getMessage());
                 }
             }
         }

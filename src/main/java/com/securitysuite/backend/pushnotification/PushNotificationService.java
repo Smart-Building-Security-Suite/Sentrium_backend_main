@@ -1,5 +1,6 @@
 package com.securitysuite.backend.pushnotification;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.securitysuite.backend.common.NotFoundException;
 import com.securitysuite.backend.user.User;
 import com.securitysuite.backend.user.UserRepository;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,6 +27,7 @@ public class PushNotificationService {
     private final PushNotificationDeviceRepository deviceRepository;
     private final UserRepository userRepository;
     private final ExpoPushNotificationClient expoPushClient;
+    private final ObjectMapper objectMapper;
 
     /**
      * Register a device for push notifications
@@ -35,21 +38,15 @@ public class PushNotificationService {
         User user = userRepository.findByPhoneNumber(userPhoneNumber)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        // Check if token already exists
-        deviceRepository.findByExpoToken(expoToken).ifPresent(existingDevice -> {
-            // Reactivate if inactive, or update user if different
-            if (!existingDevice.getActive() || !existingDevice.getUser().getId().equals(user.getId())) {
-                existingDevice.setUser(user);
-                existingDevice.setActive(true);
-                existingDevice.setDeviceType(deviceType);
-                existingDevice.setDeviceName(deviceName);
-                existingDevice.setLastUsedAt(Instant.now());
-                deviceRepository.save(existingDevice);
-            }
-        });
-
-        // Create new device registration if not exists
         PushNotificationDevice device = deviceRepository.findByExpoToken(expoToken)
+                .map(existing -> {
+                    existing.setUser(user);
+                    existing.setActive(true);
+                    existing.setDeviceType(deviceType);
+                    existing.setDeviceName(deviceName);
+                    existing.setLastUsedAt(Instant.now());
+                    return deviceRepository.save(existing);
+                })
                 .orElseGet(() -> {
                     PushNotificationDevice newDevice = new PushNotificationDevice();
                     newDevice.setUser(user);
@@ -59,8 +56,8 @@ public class PushNotificationService {
                     return deviceRepository.save(newDevice);
                 });
 
-        log.info("Push notification device registered: user={}, type={}, token={}",
-                user.getName(), deviceType, expoToken.substring(0, 20) + "...");
+        log.info("Push notification device registered: user={}, type={}, token={}...",
+                user.getName(), deviceType, expoToken.substring(0, Math.min(20, expoToken.length())));
 
         return PushNotificationDeviceDto.from(device);
     }
@@ -82,7 +79,7 @@ public class PushNotificationService {
         }
 
         deviceRepository.delete(device);
-        log.info("Push notification device deleted: user={}, token={}", user.getName(), expoToken.substring(0, 20) + "...");
+        log.info("Push notification device deleted: user={}, token={}...", user.getName(), expoToken.substring(0, Math.min(20, expoToken.length())));
     }
 
     /**
@@ -174,9 +171,17 @@ public class PushNotificationService {
         notification.setSound("default");
         notification.setPriority(PushNotification.Priority.NORMAL);
 
-        if (data != null && data instanceof java.util.Map<?, ?>) {
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> dataMap = (java.util.Map<String, Object>) data;
+        if (data != null) {
+            Map<String, Object> dataMap;
+            if (data instanceof Map<?, ?>) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> cast = (Map<String, Object>) data;
+                dataMap = cast;
+            } else {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> converted = objectMapper.convertValue(data, Map.class);
+                dataMap = converted;
+            }
             notification.setData(dataMap);
         }
 
@@ -198,13 +203,10 @@ public class PushNotificationService {
                 }
             }
 
-            // Update last used timestamp for successfully sent devices
             if (successCount > 0) {
                 Instant now = Instant.now();
-                devices.forEach(device -> {
-                    device.setLastUsedAt(now);
-                    deviceRepository.save(device);
-                });
+                devices.forEach(device -> device.setLastUsedAt(now));
+                deviceRepository.saveAll(devices);
             }
 
             log.info("Push notifications sent: success={}, failure={}, total={}",
