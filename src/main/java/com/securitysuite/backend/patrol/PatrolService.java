@@ -29,12 +29,14 @@ public class PatrolService {
     private final IncidentRepository incidentRepository;
 
     // ===== ROUTES =====
+    @Transactional(readOnly = true)
     public List<PatrolRouteDto> listRoutes() {
         return routeRepository.findAll().stream()
                 .map(PatrolRouteDto::from)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<PatrolRouteDto> listEnabledRoutes() {
         return routeRepository.findByEnabledTrue().stream()
                 .map(PatrolRouteDto::from)
@@ -52,6 +54,7 @@ public class PatrolService {
         return PatrolRouteDto.from(route);
     }
 
+    @Transactional(readOnly = true)
     public PatrolRouteDto getRoute(UUID id) {
         return PatrolRouteDto.from(routeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Patrol route not found")));
@@ -85,6 +88,7 @@ public class PatrolService {
         return PatrolCheckpointDto.from(checkpoint);
     }
 
+    @Transactional(readOnly = true)
     public List<PatrolCheckpointDto> getRouteCheckpoints(UUID routeId) {
         PatrolRoute route = routeRepository.findById(routeId)
                 .orElseThrow(() -> new NotFoundException("Patrol route not found"));
@@ -93,6 +97,7 @@ public class PatrolService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public PatrolCheckpointDto getCheckpointByQrCode(String qrCode) {
         return PatrolCheckpointDto.from(checkpointRepository.findByQrCode(qrCode)
                 .orElseThrow(() -> new NotFoundException("Checkpoint not found")));
@@ -203,18 +208,21 @@ public class PatrolService {
         return PatrolSessionDto.from(session);
     }
 
+    @Transactional(readOnly = true)
     public List<PatrolSessionDto> getOfficerSessions(UUID officerId) {
         return sessionRepository.findByOfficerId(officerId).stream()
                 .map(PatrolSessionDto::from)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public PatrolSessionDto getActiveSessionForOfficer(UUID officerId) {
         return sessionRepository.findActiveSessionByOfficer(officerId, PatrolSessionStatus.IN_PROGRESS)
                 .map(PatrolSessionDto::from)
                 .orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public List<PatrolCheckpointScanDto> getSessionScans(UUID sessionId) {
         return scanRepository.findBySessionId(sessionId).stream()
                 .map(PatrolCheckpointScanDto::from)
