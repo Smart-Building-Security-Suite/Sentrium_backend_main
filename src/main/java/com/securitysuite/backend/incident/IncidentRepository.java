@@ -11,22 +11,28 @@ import java.util.List;
 import java.util.UUID;
 
 public interface IncidentRepository extends JpaRepository<Incident, UUID> {
-    @Query("SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.status = :status")
+    @Query(value = "SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.status = :status",
+           countQuery = "SELECT COUNT(i) FROM Incident i WHERE i.status = :status")
     Page<Incident> findByStatus(@Param("status") IncidentStatus status, Pageable pageable);
 
-    @Query("SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.type = :type")
+    @Query(value = "SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.type = :type",
+           countQuery = "SELECT COUNT(i) FROM Incident i WHERE i.type = :type")
     Page<Incident> findByType(@Param("type") IncidentType type, Pageable pageable);
 
-    @Query("SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.severity = :severity")
+    @Query(value = "SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.severity = :severity",
+           countQuery = "SELECT COUNT(i) FROM Incident i WHERE i.severity = :severity")
     Page<Incident> findBySeverity(@Param("severity") IncidentSeverity severity, Pageable pageable);
 
-    @Query("SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.assignedTo.id = :assignedToId")
+    @Query(value = "SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.assignedTo.id = :assignedToId",
+           countQuery = "SELECT COUNT(i) FROM Incident i WHERE i.assignedTo.id = :assignedToId")
     Page<Incident> findByAssignedToId(@Param("assignedToId") UUID assignedToId, Pageable pageable);
 
-    @Query("SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.zone.id = :zoneId")
+    @Query(value = "SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone WHERE i.zone.id = :zoneId",
+           countQuery = "SELECT COUNT(i) FROM Incident i WHERE i.zone.id = :zoneId")
     Page<Incident> findByZoneId(@Param("zoneId") UUID zoneId, Pageable pageable);
 
-    @Query("SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone")
+    @Query(value = "SELECT DISTINCT i FROM Incident i LEFT JOIN FETCH i.reportedBy LEFT JOIN FETCH i.assignedTo LEFT JOIN FETCH i.zone",
+           countQuery = "SELECT COUNT(i) FROM Incident i")
     Page<Incident> findAll(Pageable pageable);
 
     @Query("SELECT i FROM Incident i WHERE i.reportedAt BETWEEN :start AND :end")

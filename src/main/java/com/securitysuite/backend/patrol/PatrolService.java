@@ -31,7 +31,7 @@ public class PatrolService {
     // ===== ROUTES =====
     @Transactional(readOnly = true)
     public List<PatrolRouteDto> listRoutes() {
-        return routeRepository.findAll().stream()
+        return routeRepository.findAllWithCheckpoints().stream()
                 .map(PatrolRouteDto::from)
                 .toList();
     }

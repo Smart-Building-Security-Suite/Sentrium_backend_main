@@ -29,6 +29,7 @@ public class IncidentService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private PushNotificationService pushNotificationService;
 
+    @Transactional(readOnly = true)
     public Page<IncidentDto> listAll(IncidentStatus status, IncidentType type, IncidentSeverity severity,
                                      UUID zoneId, UUID assignedToId, Pageable pageable) {
         if (status != null) return incidentRepository.findByStatus(status, pageable).map(IncidentDto::from);
@@ -148,11 +149,13 @@ public class IncidentService {
         return IncidentDto.from(incidentRepository.save(incident));
     }
 
+    @Transactional(readOnly = true)
     public IncidentDto getById(UUID id) {
         return IncidentDto.from(incidentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Incident not found")));
     }
 
+    @Transactional(readOnly = true)
     public List<IncidentDto> getOpenIncidents() {
         return incidentRepository.findOpenIncidents(
                 IncidentStatus.OPEN,
@@ -163,6 +166,7 @@ public class IncidentService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public long getOpenIncidentCount() {
         return incidentRepository.countOpenIncidents(
                 IncidentStatus.OPEN,
