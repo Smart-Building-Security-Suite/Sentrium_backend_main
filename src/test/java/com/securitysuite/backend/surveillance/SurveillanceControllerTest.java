@@ -108,14 +108,11 @@ class SurveillanceControllerTest {
     @Test
     @WithMockUser(roles = "ADMIN")
     void testCreateMotionEvent_ValidatesConfidence() throws Exception {
-        CreateMotionEventRequest request = new CreateMotionEventRequest(
-                "camera-123",
-                null
-        );
+        String json = "{\"cameraId\": \"camera-123\", \"confidence\": null}";
 
         mockMvc.perform(post("/surveillance/motion-events")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(json))
                 .andExpect(status().isBadRequest());
     }
 

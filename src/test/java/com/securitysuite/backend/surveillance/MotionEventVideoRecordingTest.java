@@ -64,14 +64,14 @@ class MotionEventVideoRecordingTest {
         // Create test zone
         testZone = new Zone();
         testZone.setName("Test Zone");
-        testZone.setLocationDescription("Test Location");
-        testZone.setActive(true);
+        testZone.setFloor("1");
+        testZone.setBuilding("Main");
         testZone = zoneRepository.save(testZone);
 
         // Create camera WITH stream URL (should trigger video recording)
         testCameraWithStream = new Device();
         testCameraWithStream.setName("Test Camera With Stream");
-        testCameraWithStream.setType(DeviceType.CAMERA);
+        testCameraWithStream.setType(DeviceType.CAMERA_SIM);
         testCameraWithStream.setZone(testZone);
         testCameraWithStream.setStatus(DeviceStatus.IDLE);
         testCameraWithStream.setStreamUrl("rtsp://example.com/stream");
@@ -82,7 +82,7 @@ class MotionEventVideoRecordingTest {
         // Create camera WITHOUT stream URL (should use simulated clip)
         testCameraWithoutStream = new Device();
         testCameraWithoutStream.setName("Test Camera Without Stream");
-        testCameraWithoutStream.setType(DeviceType.CAMERA);
+        testCameraWithoutStream.setType(DeviceType.CAMERA_SIM);
         testCameraWithoutStream.setZone(testZone);
         testCameraWithoutStream.setStatus(DeviceStatus.IDLE);
         testCameraWithoutStream.setStreamResolution("720p");

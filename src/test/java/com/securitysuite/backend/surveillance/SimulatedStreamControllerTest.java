@@ -41,12 +41,16 @@ class SimulatedStreamControllerTest {
     @Test
     @WithMockUser(roles = "SECURITY_OFFICER")
     void testGetSimulatedFrame_ReturnsJpegImage() throws Exception {
-        mockMvc.perform(get(SIMULATED_ENDPOINT + "/" + SIMULATED_CAMERA_ID + "/frame.jpg"))
+        byte[] imageBytes = mockMvc.perform(get(SIMULATED_ENDPOINT + "/" + SIMULATED_CAMERA_ID + "/frame.jpg"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.IMAGE_JPEG))
-                .andExpect(content().bytes(bytes -> bytes.length > 0))
-                // JPEG magic bytes: FF D8 FF
-                .andExpect(content().bytes(bytes -> bytes[0] == (byte) 0xFF && bytes[1] == (byte) 0xD8));
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        assert imageBytes.length > 0 : "Frame should not be empty";
+        // JPEG magic bytes: FF D8
+        assert imageBytes[0] == (byte) 0xFF && imageBytes[1] == (byte) 0xD8 : "Should be valid JPEG";
     }
 
     @Test
