@@ -84,8 +84,9 @@ public class VideoClipService {
                 .orElseThrow(() -> new NotFoundException("Camera not found: " + cameraId));
 
         if (camera.getStreamUrl() == null || camera.getStreamUrl().isBlank()) {
-            log.error("Cannot record clip: camera {} ({}) has no stream URL configured", camera.getName(), cameraId);
-            throw new IllegalStateException("Camera stream URL not configured");
+            log.warn("Camera {} ({}) has no stream URL configured, creating simulated video clip", camera.getName(), cameraId);
+            recordSimulatedClip(camera, durationSeconds, triggerType, triggerEventId);
+            return;
         }
 
         // SECURITY: Validate and sanitize stream URL to prevent command injection
@@ -307,6 +308,62 @@ public class VideoClipService {
         }
 
         log.info("Cleanup completed: {} expired clips deleted", deleted);
+    }
+
+    /**
+     * Record a simulated video clip for testing/demonstration purposes.
+     * Creates a database record without actually recording video from the stream.
+     */
+    @Transactional
+    private void recordSimulatedClip(Device camera, int durationSeconds, String triggerType, UUID triggerEventId) {
+        try {
+            Instant startTime = Instant.now();
+            Instant endTime = startTime.plusSeconds(durationSeconds);
+
+            VideoClip clip = new VideoClip();
+            clip.setCamera(camera);
+            clip.setStartTime(startTime);
+            clip.setEndTime(endTime);
+            clip.setDurationSeconds(durationSeconds);
+
+            String filename = generateFilename(camera.getId(), startTime);
+            String simulatedPath = videoStoragePath + "/simulated/" + filename;
+
+            clip.setFilePath(simulatedPath);
+            clip.setFileUrl(simulatedPath);
+            clip.setFileSizeBytes(5242880L); // Simulate 5MB file
+            clip.setFormat("MP4");
+            clip.setResolution(camera.getStreamResolution() != null ? camera.getStreamResolution() : "1080p");
+            clip.setTriggerType(triggerType);
+            clip.setTriggerEventId(triggerEventId);
+            clip.setRetentionUntil(Instant.now().plus(defaultRetentionDays, ChronoUnit.DAYS));
+
+            videoClipRepository.save(clip);
+
+            log.info("Simulated video clip recorded: id={}, camera={}, trigger={}", clip.getId(), camera.getName(), triggerType);
+
+            // Generate simulated thumbnail
+            generateSimulatedThumbnail(clip);
+
+        } catch (Exception e) {
+            log.error("Failed to record simulated video clip for camera {}", camera.getId(), e);
+        }
+    }
+
+    /**
+     * Generate a simulated thumbnail for testing purposes.
+     */
+    @Async
+    protected void generateSimulatedThumbnail(VideoClip clip) {
+        try {
+            String thumbnailPath = videoStoragePath + "/simulated/thumbnails/" + clip.getId() + "_thumb.jpg";
+            clip.setThumbnailPath(thumbnailPath);
+            clip.setThumbnailUrl(thumbnailPath);
+            videoClipRepository.save(clip);
+            log.info("Simulated thumbnail path set for clip {}: {}", clip.getId(), thumbnailPath);
+        } catch (Exception e) {
+            log.error("Failed to set simulated thumbnail for clip {}", clip.getId(), e);
+        }
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────

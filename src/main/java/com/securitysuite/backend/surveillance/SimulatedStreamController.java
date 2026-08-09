@@ -191,76 +191,105 @@ public class SimulatedStreamController {
         BufferedImage image = new BufferedImage(FRAME_WIDTH, FRAME_HEIGHT, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = image.createGraphics();
 
-        // Enable anti-aliasing for better text rendering
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        try {
+            // Enable anti-aliasing for better text rendering
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        // Generate dynamic background (simulates changing scene)
-        int colorVariation = (int) ((System.currentTimeMillis() / 100) % 255);
-        Color backgroundColor = new Color(
-                (colorVariation + 50) % 256,
-                (colorVariation + 100) % 256,
-                (colorVariation + 150) % 256
-        );
-        g.setColor(backgroundColor);
-        g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+            // Generate dynamic background (simulates changing scene)
+            long currentTimeMs = System.currentTimeMillis();
+            int colorVariation = (int) ((currentTimeMs / 100) % 255);
+            Color backgroundColor = new Color(
+                    Math.max(0, Math.min(255, (colorVariation + 50) % 256)),
+                    Math.max(0, Math.min(255, (colorVariation + 100) % 256)),
+                    Math.max(0, Math.min(255, (colorVariation + 150) % 256))
+            );
+            g.setColor(backgroundColor);
+            g.fillRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
 
-        // Draw grid pattern (simulates scene structure)
-        g.setColor(new Color(255, 255, 255, 30));
-        for (int x = 0; x < FRAME_WIDTH; x += 50) {
-            g.drawLine(x, 0, x, FRAME_HEIGHT);
+            // Draw grid pattern (simulates scene structure)
+            g.setColor(new Color(255, 255, 255, 30));
+            for (int x = 0; x < FRAME_WIDTH; x += 50) {
+                g.drawLine(x, 0, x, FRAME_HEIGHT);
+            }
+            for (int y = 0; y < FRAME_HEIGHT; y += 50) {
+                g.drawLine(0, y, FRAME_WIDTH, y);
+            }
+
+            // Draw moving "object" (simulates motion detection)
+            int objectX = (int) ((currentTimeMs / 50) % FRAME_WIDTH);
+            int objectY = FRAME_HEIGHT / 2 + (int) (Math.sin(currentTimeMs / 500.0) * 100);
+            g.setColor(new Color(255, 0, 0, 180));
+            g.fillOval(Math.max(0, objectX - 15), Math.max(0, objectY - 15), 30, 30);
+
+            // Draw secondary moving object
+            int object2X = (int) ((currentTimeMs / 40) % FRAME_WIDTH);
+            int object2Y = FRAME_HEIGHT / 3 + (int) (Math.cos(currentTimeMs / 600.0) * 80);
+            g.setColor(new Color(0, 255, 0, 160));
+            g.fillRect(Math.max(0, object2X - 10), Math.max(0, object2Y - 10), 20, 20);
+
+            // Draw camera info overlay
+            drawOverlay(g, cameraId);
+        } finally {
+            g.dispose();
         }
-        for (int y = 0; y < FRAME_HEIGHT; y += 50) {
-            g.drawLine(0, y, FRAME_WIDTH, y);
-        }
-
-        // Draw moving "object" (simulates motion detection)
-        int objectX = (int) ((System.currentTimeMillis() / 50) % FRAME_WIDTH);
-        int objectY = FRAME_HEIGHT / 2 + (int) (Math.sin(System.currentTimeMillis() / 500.0) * 100);
-        g.setColor(new Color(255, 0, 0, 180));
-        g.fillOval(objectX - 15, objectY - 15, 30, 30);
-
-        // Draw camera info overlay
-        drawOverlay(g, cameraId);
-
-        g.dispose();
 
         // Convert to JPEG bytes
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(image, "jpg", baos);
+        if (!ImageIO.write(image, "jpg", baos)) {
+            log.warn("Failed to write JPEG for camera {}, retrying with default writer", cameraId);
+            baos.reset();
+            ImageIO.write(image, "jpg", baos);
+        }
         return baos.toByteArray();
     }
 
     private void drawOverlay(Graphics2D g, String cameraId) {
-        // Semi-transparent overlay background
-        g.setColor(new Color(0, 0, 0, 180));
-        g.fillRect(10, 10, FRAME_WIDTH - 20, 120);
+        try {
+            // Semi-transparent overlay background
+            g.setColor(new Color(0, 0, 0, 200));
+            g.fillRect(10, 10, FRAME_WIDTH - 20, 130);
 
-        // Camera ID
-        g.setColor(Color.WHITE);
-        g.setFont(new Font("Monospaced", Font.BOLD, 20));
-        String displayId = cameraId.length() > 8 ? cameraId.substring(0, 8) : cameraId;
-        g.drawString("Camera: " + displayId, 20, 35);
+            // Border for clarity
+            g.setColor(new Color(0, 200, 0, 255));
+            g.setStroke(new java.awt.BasicStroke(2.0f));
+            g.drawRect(10, 10, FRAME_WIDTH - 20, 130);
 
-        // Timestamp
-        g.setFont(new Font("Monospaced", Font.PLAIN, 16));
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        g.drawString("Time: " + timestamp, 20, 60);
+            // Camera ID
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Monospaced", Font.BOLD, 18));
+            String displayId = cameraId.length() > 16 ? cameraId.substring(0, 16) : cameraId;
+            g.drawString("Camera: " + displayId, 20, 35);
 
-        // Status indicator
-        g.setColor(Color.GREEN);
-        g.fillOval(20, 75, 15, 15);
-        g.setColor(Color.WHITE);
-        g.drawString("LIVE - SIMULATED", 45, 88);
+            // Timestamp with millisecond precision
+            g.setFont(new Font("Monospaced", Font.PLAIN, 14));
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"));
+            g.drawString("Time: " + timestamp, 20, 60);
 
-        // FPS indicator
-        g.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        g.drawString("Target: " + TARGET_FPS + " FPS", 20, 110);
+            // Status indicator (animated)
+            long pulseTime = System.currentTimeMillis() % 1000;
+            boolean isOn = pulseTime < 500;
+            g.setColor(isOn ? new Color(0, 255, 0) : new Color(0, 180, 0));
+            g.fillOval(20, 70, 15, 15);
+            g.setColor(Color.WHITE);
+            g.drawString("LIVE - SIMULATED", 45, 83);
 
-        // Watermark
-        g.setColor(new Color(255, 255, 255, 100));
-        g.setFont(new Font("Arial", Font.BOLD, 12));
-        g.drawString("SENTRIUM TEST FEED", FRAME_WIDTH - 180, FRAME_HEIGHT - 20);
+            // FPS indicator
+            g.setFont(new Font("Monospaced", Font.PLAIN, 12));
+            g.drawString("Target: " + TARGET_FPS + " FPS | Resolution: " + FRAME_WIDTH + "x" + FRAME_HEIGHT, 20, 105);
+
+            // Connection status
+            g.setColor(new Color(0, 200, 255));
+            g.drawString("Status: CONNECTED", 20, 125);
+
+            // Watermark (bottom right)
+            g.setColor(new Color(255, 255, 255, 120));
+            g.setFont(new Font("Arial", Font.BOLD, 11));
+            g.drawString("SENTRIUM SIMULATED TEST FEED", FRAME_WIDTH - 220, FRAME_HEIGHT - 10);
+        } catch (Exception e) {
+            log.warn("Error drawing overlay for camera {}: {}", cameraId, e.getMessage());
+        }
     }
 
     // -------------------------------------------------------------------------

@@ -42,11 +42,21 @@ public class IncidentController {
             @RequestParam(defaultValue = "reportedAt,desc") String sort) {
 
         String[] sortParts = sort.split(",");
+        String sortField = sortParts[0];
+
+        if (!isValidSortField(sortField)) {
+            sortField = "reportedAt";
+        }
+
         Sort.Direction direction = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("asc")
                 ? Sort.Direction.ASC : Sort.Direction.DESC;
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParts[0]));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
 
         return incidentService.listAll(status, type, severity, zoneId, assignedToId, pageable);
+    }
+
+    private boolean isValidSortField(String field) {
+        return field.matches("^(id|title|type|severity|status|location|reportedAt|resolvedAt|requiresFollowUp)$");
     }
 
     @GetMapping("/{id}")

@@ -53,6 +53,7 @@ public class SurveillanceService {
      * If the device is not found (e.g. unregistered gateway), the cameraId is used as a fallback name.
      * Optionally triggers video recording if camera has RTSP stream configured.
      */
+    @Transactional
     public MotionEventDto createMotionEvent(CreateMotionEventRequest request) {
         String cameraName = resolveCameraName(request.cameraId());
 
@@ -64,17 +65,23 @@ public class SurveillanceService {
                 .build();
 
         event = motionEventRepository.save(event);
+        log.info("Motion event created: camera={}, confidence={}, eventId={}",
+                 request.cameraId(), request.confidence(), event.getId());
 
-        // Trigger video recording if camera supports it
-        findDeviceById(request.cameraId()).ifPresent(device -> {
-            if (device.getStreamUrl() != null && !device.getStreamUrl().isBlank()) {
-                // Record 30 second clip on motion detection
-                // Note: event.getId() is Long, but trigger accepts UUID - needs conversion or null
-                videoClipService.recordClip(device.getId(), 30, "MOTION", null);
-            }
-        });
+        triggerVideoRecording(request.cameraId(), event.getId());
 
         return toDto(event);
+    }
+
+    private void triggerVideoRecording(String cameraId, Long motionEventId) {
+        findDeviceById(cameraId).ifPresent(device -> {
+            if (device.getStreamUrl() != null && !device.getStreamUrl().isBlank()) {
+                log.info("Triggering video recording for device: {}", device.getId());
+                videoClipService.recordClip(device.getId(), 30, "MOTION", null);
+            } else {
+                log.debug("Device {} has no stream URL configured, skipping video recording", device.getId());
+            }
+        });
     }
 
     /**
