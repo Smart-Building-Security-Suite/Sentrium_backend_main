@@ -223,6 +223,13 @@ public class PatrolService {
     }
 
     @Transactional(readOnly = true)
+    public PatrolSessionDto getActiveSessionForOfficerByPhone(String phoneNumber) {
+        User officer = userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new NotFoundException("Officer not found"));
+        return getActiveSessionForOfficer(officer.getId());
+    }
+
+    @Transactional(readOnly = true)
     public List<PatrolCheckpointScanDto> getSessionScans(UUID sessionId) {
         return scanRepository.findBySessionId(sessionId).stream()
                 .map(PatrolCheckpointScanDto::from)

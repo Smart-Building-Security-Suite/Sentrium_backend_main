@@ -13,8 +13,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.context.event.EventListener;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -29,21 +29,22 @@ public class NotificationListener {
     private String fromAddress;
 
     @Async
-    @EventListener
+    @org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
     @Transactional
     public void onAlertCreated(AlertCreatedEvent event) {
         Alert alert = event.alert();
-        // Fetch only SECURITY_OFFICER users from the DB — avoids loading all users into memory
-        List<User> officers = userRepository.findByRole(Role.SECURITY_OFFICER);
-        log.info("Dispatching notifications for alert {} to {} security officer(s)", alert.getId(), officers.size());
-        for (User user : officers) {
+        List<User> recipients = new ArrayList<>();
+        recipients.addAll(userRepository.findByRole(Role.SECURITY_OFFICER));
+        recipients.addAll(userRepository.findByRole(Role.ADMIN));
+        log.info("Dispatching notifications for alert {} to {} security personnel", alert.getId(), recipients.size());
+        for (User user : recipients) {
             saveNotification(user, alert, NotificationChannel.IN_APP);
             if (alert.getSeverity() == AlertSeverity.CRITICAL) {
                 saveNotification(user, alert, NotificationChannel.EMAIL);
                 try {
                     SimpleMailMessage message = new SimpleMailMessage();
                     message.setFrom(fromAddress);
-                    message.setTo(user.getPhoneNumber()); // Assuming phone number works or email is used differently
+                    message.setTo(user.getPhoneNumber());
                     message.setSubject("[CRITICAL] Security alert: " + alert.getMessage());
                     message.setText("Critical security alert in zone " + alert.getZone().getName() + ". Message: " + alert.getMessage());
                     mailSender.send(message);

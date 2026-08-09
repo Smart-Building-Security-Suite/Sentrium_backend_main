@@ -142,9 +142,8 @@ public class PatrolController {
                description = "Retrieves the currently active patrol session for the authenticated officer, if any. Returns null if no active session. Admin and Security Officer access.")
     @PreAuthorize("hasAnyRole('ADMIN','SECURITY_OFFICER')")
     public ResponseEntity<PatrolSessionDto> getMyActiveSession(@AuthenticationPrincipal UserDetails principal) {
-        // Get current user ID from phone number
-        // For simplicity, returning null if no active session
-        return ResponseEntity.ok(null);
+        PatrolSessionDto session = patrolService.getActiveSessionForOfficerByPhone(principal.getUsername());
+        return ResponseEntity.ok(session);
     }
 
     @PatchMapping("/scans/{scanId}/link-incident")

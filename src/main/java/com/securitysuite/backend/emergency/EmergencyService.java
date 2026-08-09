@@ -44,11 +44,17 @@ public class EmergencyService {
 
         log.warn("EMERGENCY TRIGGERED: type={}, severity={}, triggeredBy={}", eventType, severity, triggeredBy.getName());
 
-        // 🆘 PUSH NOTIFICATION: Emergency Event
         if (pushNotificationService != null) {
-            pushNotificationService.sendEmergencyNotification(
-                eventType.name(),
-                description
+            pushNotificationService.sendToSecurityPersonnelExcluding(
+                "🆘 EMERGENCY: " + eventType.name(),
+                description,
+                Map.of(
+                    "eventId", event.getId().toString(),
+                    "type", eventType.name(),
+                    "severity", severity.name(),
+                    "triggeredBy", triggeredBy.getName()
+                ),
+                triggeredBy.getId()
             );
         }
 

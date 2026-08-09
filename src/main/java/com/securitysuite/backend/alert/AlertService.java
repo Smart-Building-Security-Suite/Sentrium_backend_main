@@ -5,6 +5,8 @@ import com.securitysuite.backend.device.Device;
 import com.securitysuite.backend.device.DeviceRepository;
 import com.securitysuite.backend.notification.AlertCreatedEvent;
 import com.securitysuite.backend.pushnotification.PushNotificationService;
+import com.securitysuite.backend.user.User;
+import com.securitysuite.backend.user.UserRepository;
 import com.securitysuite.backend.websocket.WebSocketAlertPublisher;
 import com.securitysuite.backend.zone.Zone;
 import com.securitysuite.backend.zone.ZoneRepository;
@@ -27,6 +29,7 @@ public class AlertService {
     private final DeviceRepository deviceRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final WebSocketAlertPublisher webSocketPublisher;
+    private final UserRepository userRepository;
 
     @Autowired(required = false)
     private PushNotificationService pushNotificationService;
@@ -73,7 +76,6 @@ public class AlertService {
         alert = alertRepository.save(alert);
         eventPublisher.publishEvent(new AlertCreatedEvent(alert));
 
-        // 🔔 PUSH NOTIFICATION: Alert Created
         if (pushNotificationService != null) {
             String emoji = switch (alert.getSeverity()) {
                 case CRITICAL -> "🚨";
@@ -82,7 +84,16 @@ public class AlertService {
                 case LOW -> "ℹ️";
             };
 
-            pushNotificationService.sendToSecurityPersonnel(
+            UUID excludeUserId = null;
+            org.springframework.security.core.Authentication auth =
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                excludeUserId = userRepository.findByPhoneNumber(auth.getName())
+                        .map(User::getId)
+                        .orElse(null);
+            }
+
+            pushNotificationService.sendToSecurityPersonnelExcluding(
                 emoji + " New Alert: " + alert.getSeverity(),
                 alert.getMessage() + " in " + zone.getName(),
                 Map.of(
@@ -91,7 +102,8 @@ public class AlertService {
                     "zoneId", zone.getId().toString(),
                     "zoneName", zone.getName(),
                     "type", "ALERT_CREATED"
-                )
+                ),
+                excludeUserId
             );
         }
 

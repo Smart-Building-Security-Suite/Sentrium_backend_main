@@ -71,10 +71,9 @@ public class IncidentService {
         incident = incidentRepository.save(incident);
         log.info("Incident created: {} by {}", incident.getTitle(), reportedBy.getName());
 
-        // 🔔 PUSH NOTIFICATION: New Incident (HIGH/CRITICAL severity only)
         if (pushNotificationService != null &&
             (incident.getSeverity() == IncidentSeverity.HIGH || incident.getSeverity() == IncidentSeverity.CRITICAL)) {
-            pushNotificationService.sendToSecurityPersonnel(
+            pushNotificationService.sendToSecurityPersonnelExcluding(
                 "🚨 New " + incident.getSeverity() + " Incident",
                 incident.getTitle(),
                 Map.of(
@@ -82,7 +81,8 @@ public class IncidentService {
                     "type", incident.getType().name(),
                     "severity", incident.getSeverity().name(),
                     "reportedBy", reportedBy.getName()
-                )
+                ),
+                reportedBy.getId()
             );
         }
 

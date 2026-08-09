@@ -108,10 +108,14 @@ public class AnomalyService {
         anomaly = anomalyRepository.save(anomaly);
         log.warn("Anomaly detected: type={}, severity={}, entity={}:{}", type, severity, entityType, entityId);
 
-        // 🔔 PUSH NOTIFICATION: High/Critical Anomaly Detected
         if (pushNotificationService != null &&
-            (severity == AnomalySeverity.HIGH || severity == AnomalySeverity.CRITICAL)) {
-            String emoji = severity == AnomalySeverity.CRITICAL ? "🚨" : "⚠️";
+            (severity == AnomalySeverity.MEDIUM || severity == AnomalySeverity.HIGH || severity == AnomalySeverity.CRITICAL)) {
+            String emoji = switch (severity) {
+                case CRITICAL -> "🚨";
+                case HIGH -> "⚠️";
+                case MEDIUM -> "⚡";
+                default -> "ℹ️";
+            };
             pushNotificationService.sendToSecurityPersonnel(
                 emoji + " Anomaly Detected: " + type.name(),
                 description,

@@ -115,10 +115,23 @@ public class PushNotificationService {
      * Send push notification to all security personnel (ADMIN + SECURITY_OFFICER)
      */
     public SendNotificationResult sendToSecurityPersonnel(String title, String body, Object data) {
+        return sendToSecurityPersonnelExcluding(title, body, data, null);
+    }
+
+    /**
+     * Send push notification to all security personnel, excluding a specific user (e.g. the one who triggered the action)
+     */
+    public SendNotificationResult sendToSecurityPersonnelExcluding(String title, String body, Object data, UUID excludeUserId) {
         List<PushNotificationDevice> devices = deviceRepository.findAllSecurityPersonnelDevices(
                 com.securitysuite.backend.user.Role.ADMIN,
                 com.securitysuite.backend.user.Role.SECURITY_OFFICER
         );
+
+        if (excludeUserId != null) {
+            devices = devices.stream()
+                    .filter(d -> !d.getUser().getId().equals(excludeUserId))
+                    .collect(Collectors.toList());
+        }
 
         if (devices.isEmpty()) {
             log.warn("No active devices found for security personnel");
