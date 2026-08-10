@@ -5,6 +5,7 @@ import com.securitysuite.backend.auth.dto.*;
 import com.securitysuite.backend.security.CustomUserDetailsService;
 import com.securitysuite.backend.security.JwtService;
 import com.securitysuite.backend.user.Role;
+import com.securitysuite.backend.user.UserRepository;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,9 @@ class AuthControllerTest {
 
     @MockBean
     private RevokedTokenRepository revokedTokenRepository;
+
+    @MockBean
+    private UserRepository userRepository;
 
     @Test
     @DisplayName("POST /auth/signup/otp/request - Success")

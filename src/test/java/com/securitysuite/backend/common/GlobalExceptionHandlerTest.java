@@ -46,7 +46,7 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.error").value("Unauthorized"))
-                .andExpect(jsonPath("$.message").value("Invalid email or password"))
+                .andExpect(jsonPath("$.message").value("Invalid credentials"))
                 .andExpect(jsonPath("$.path").value("/test/bad-credentials"));
     }
 

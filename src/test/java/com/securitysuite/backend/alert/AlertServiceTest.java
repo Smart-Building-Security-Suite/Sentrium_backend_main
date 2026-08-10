@@ -3,6 +3,8 @@ package com.securitysuite.backend.alert;
 import com.securitysuite.backend.common.NotFoundException;
 import com.securitysuite.backend.device.DeviceRepository;
 import com.securitysuite.backend.notification.AlertCreatedEvent;
+import com.securitysuite.backend.user.UserRepository;
+import com.securitysuite.backend.websocket.WebSocketAlertPublisher;
 import com.securitysuite.backend.zone.Zone;
 import com.securitysuite.backend.zone.ZoneRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +38,12 @@ class AlertServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private WebSocketAlertPublisher webSocketPublisher;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private AlertService alertService;
