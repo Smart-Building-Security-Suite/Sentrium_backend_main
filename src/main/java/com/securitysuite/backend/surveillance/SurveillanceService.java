@@ -8,6 +8,7 @@ import com.securitysuite.backend.surveillance.dto.FeedStatusDto;
 import com.securitysuite.backend.surveillance.dto.MotionEventDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,9 @@ public class SurveillanceService {
     private final MotionEventRepository motionEventRepository;
     private final DeviceRepository deviceRepository;
     private final com.securitysuite.backend.videoclip.VideoClipService videoClipService;
+
+    @Autowired(required = false)
+    private com.securitysuite.backend.alert.AlertService alertService;
 
     /**
      * Lists motion events with optional filtering by cameraId and/or detectedAt range.
@@ -72,6 +76,7 @@ public class SurveillanceService {
                  request.cameraId(), request.confidence(), event.getId());
 
         triggerVideoRecording(request.cameraId(), event.getId());
+        createAlertForHighConfidenceMotion(request, event);
 
         return toDto(event);
     }
@@ -85,6 +90,41 @@ public class SurveillanceService {
                 log.debug("Device {} has no stream URL configured, skipping video recording", device.getId());
             }
         });
+    }
+
+    private void createAlertForHighConfidenceMotion(CreateMotionEventRequest request, MotionEvent event) {
+        if (alertService == null) {
+            log.debug("AlertService not available, skipping alert creation");
+            return;
+        }
+
+        // Only create alerts for high-confidence motion events (>0.7)
+        if (request.confidence() > 0.7) {
+            findDeviceById(request.cameraId()).ifPresent(device -> {
+                if (device.getZone() != null) {
+                    com.securitysuite.backend.alert.AlertSeverity severity =
+                        request.confidence() > 0.9
+                            ? com.securitysuite.backend.alert.AlertSeverity.HIGH
+                            : com.securitysuite.backend.alert.AlertSeverity.MEDIUM;
+
+                    try {
+                        alertService.create(new com.securitysuite.backend.alert.AlertService.CreateAlertRequest(
+                            device.getZone().getId(),
+                            device.getId(),
+                            severity,
+                            String.format("Motion detected by %s (confidence: %.1f%%)",
+                                device.getName(), request.confidence() * 100)
+                        ));
+                        log.info("Alert created for motion event: camera={}, confidence={}",
+                            request.cameraId(), request.confidence());
+                    } catch (Exception e) {
+                        log.error("Failed to create alert for motion event", e);
+                    }
+                } else {
+                    log.debug("Device {} has no zone assigned, skipping alert creation", device.getId());
+                }
+            });
+        }
     }
 
     /**

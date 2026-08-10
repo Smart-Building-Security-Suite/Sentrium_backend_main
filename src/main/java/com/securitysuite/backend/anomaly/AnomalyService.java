@@ -32,6 +32,15 @@ public class AnomalyService {
     @Autowired(required = false)
     private PushNotificationService pushNotificationService;
 
+    @Autowired(required = false)
+    private com.securitysuite.backend.alert.AlertService alertService;
+
+    @Autowired(required = false)
+    private com.securitysuite.backend.zone.ZoneRepository zoneRepository;
+
+    @Autowired(required = false)
+    private com.securitysuite.backend.device.DeviceRepository deviceRepository;
+
     public Page<AnomalyDto> listAll(AnomalyType type, AnomalySeverity severity, Boolean reviewed, Pageable pageable) {
         if (type != null) return anomalyRepository.findByAnomalyType(type, pageable).map(AnomalyDto::from);
         if (severity != null) return anomalyRepository.findBySeverity(severity, pageable).map(AnomalyDto::from);
@@ -129,6 +138,9 @@ public class AnomalyService {
             );
         }
 
+        // Create alert for high-severity anomalies
+        createAlertForAnomaly(anomaly, entityType, entityId, description);
+
         return AnomalyDto.from(anomaly);
     }
 
@@ -221,5 +233,65 @@ public class AnomalyService {
         // Implementation would analyze failed access attempts
         // Placeholder for now
         log.debug("Checking for failed access spikes...");
+    }
+
+    private void createAlertForAnomaly(Anomaly anomaly, String entityType, UUID entityId, String description) {
+        if (alertService == null || zoneRepository == null) {
+            log.debug("AlertService or ZoneRepository not available, skipping alert creation");
+            return;
+        }
+
+        // Only create alerts for HIGH and CRITICAL severity anomalies
+        if (anomaly.getSeverity() == AnomalySeverity.HIGH || anomaly.getSeverity() == AnomalySeverity.CRITICAL) {
+            try {
+                // Try to find a zone associated with the entity
+                UUID zoneId = null;
+                UUID deviceId = null;
+
+                if ("USER".equals(entityType) && entityId != null) {
+                    // For user-related anomalies, try to get the first available zone
+                    var zones = zoneRepository.findAll();
+                    if (!zones.isEmpty()) {
+                        zoneId = zones.get(0).getId();
+                    }
+                } else if ("DEVICE".equals(entityType) && entityId != null && deviceRepository != null) {
+                    // For device-related anomalies, get the device's zone
+                    deviceId = entityId;
+                    var device = deviceRepository.findById(deviceId).orElse(null);
+                    if (device != null && device.getZone() != null) {
+                        zoneId = device.getZone().getId();
+                    }
+                }
+
+                // If we still don't have a zone, use the first available zone as fallback
+                if (zoneId == null) {
+                    var zones = zoneRepository.findAll();
+                    if (!zones.isEmpty()) {
+                        zoneId = zones.get(0).getId();
+                    } else {
+                        log.warn("No zones available, cannot create alert for anomaly: {}", anomaly.getId());
+                        return;
+                    }
+                }
+
+                com.securitysuite.backend.alert.AlertSeverity alertSeverity = switch (anomaly.getSeverity()) {
+                    case CRITICAL -> com.securitysuite.backend.alert.AlertSeverity.CRITICAL;
+                    case HIGH -> com.securitysuite.backend.alert.AlertSeverity.HIGH;
+                    case MEDIUM -> com.securitysuite.backend.alert.AlertSeverity.MEDIUM;
+                    default -> com.securitysuite.backend.alert.AlertSeverity.LOW;
+                };
+
+                alertService.create(new com.securitysuite.backend.alert.AlertService.CreateAlertRequest(
+                    zoneId,
+                    deviceId,
+                    alertSeverity,
+                    String.format("Security Anomaly: %s - %s", anomaly.getAnomalyType().name(), description)
+                ));
+
+                log.info("Alert created for anomaly: type={}, severity={}", anomaly.getAnomalyType(), anomaly.getSeverity());
+            } catch (Exception e) {
+                log.error("Failed to create alert for anomaly: {}", anomaly.getId(), e);
+            }
+        }
     }
 }
